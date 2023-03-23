@@ -39,6 +39,7 @@ func main() {
 	setupLogging(opts.Verbose)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	osSignal := make(chan os.Signal, 1)
 	signal.Notify(osSignal, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -48,13 +49,13 @@ func main() {
 		cancel()
 	}()
 
-	if args[0] == "port-forward" { // TODO: rework to cobra subcommands?
-		rport, err := strconv.Atoi(args[3])
+	if args[0] == "port-forward" { // TODO: rework into cobra subcommands?
+		rport, err := strconv.Atoi(args[4])
 		if err != nil {
 			log.Fatalf("Failed to parse remote port")
 		}
 
-		lport, err := strconv.Atoi(args[4])
+		lport, err := strconv.Atoi(args[5])
 		if err != nil {
 			log.Fatalf("Failed to parse local port")
 		}
@@ -64,7 +65,10 @@ func main() {
 			jwt = os.Getenv("KOMOCLI_JWT")
 		}
 
-		portforward.RunPortForwarding(ctx, args[1], args[2], rport, lport, jwt)
+		err = portforward.RunPortForwarding(ctx, args[1], args[2], args[3], rport, lport, jwt) // FIXME: very bad CLI interface!
+		if err != nil {
+			log.Fatalf("Error while trying to forward port: %+v", err)
+		}
 	} else {
 		log.Fatalf("Unsupported arguments provided")
 	}
