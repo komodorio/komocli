@@ -67,13 +67,6 @@ func (w *WSConnectionWrapper) Run() error {
 		return err
 	}
 
-	go func() {
-		<-w.ctx.Done()
-		if w.tcpConn != nil {
-			w.tcpConn.Close()
-		}
-	}()
-
 	// write loop
 	go func() {
 		if w.isConnTest {
@@ -191,6 +184,7 @@ func (w *WSConnectionWrapper) Read(p []byte) (n int, err error) {
 }
 
 func (w *WSConnectionWrapper) Stop() error {
+	log.Infof("Closing forwarded connection: %v", w.tcpConn)
 	err := w.sendWS(&SessionMessage{
 		MessageId:   uuid.NewString(),
 		SessionId:   w.SessionId,
@@ -206,10 +200,12 @@ func (w *WSConnectionWrapper) Stop() error {
 		return err
 	}
 
-	err = w.tcpConn.Close()
-	if err != nil {
-		log.Debugf("Failed to close connection: %s", err)
-		return err
+	if !w.isConnTest {
+		err = w.tcpConn.Close()
+		if err != nil {
+			log.Debugf("Failed to close connection: %s", err)
+			return err
+		}
 	}
 
 	return nil

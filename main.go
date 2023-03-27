@@ -65,7 +65,8 @@ func main() {
 			jwt = os.Getenv("KOMOCLI_JWT")
 		}
 
-		err = portforward.RunPortForwarding(ctx, args[1], args[2], args[3], rport, lport, jwt) // FIXME: very bad CLI interface!
+		f := portforward.NewController(args[1], args[2], args[3], rport, lport, jwt) // FIXME: very bad CLI interface!
+		err = f.Run(ctx)
 		if err != nil {
 			log.Fatalf("Error while trying to forward port: %+v", err)
 		}

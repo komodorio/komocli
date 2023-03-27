@@ -9,18 +9,27 @@ import (
 	"strconv"
 )
 
-func RunPortForwarding(ctx context.Context, agentId string, ns string, pod string, rPort int, lport int, jwt string) error {
+type Controller struct {
+	AgentId    string
+	Namespace  string
+	PodName    string
+	RemotePort int
+	LocalPort  int
+	Token      string
+}
+
+func (c *Controller) Run(ctx context.Context) error {
 	// template message for session starts
 	initMsg := &SessionMessage{
 		MessageType: MTPodExecInit,
 		Data: &PodExecInitData{
-			Namespace: ns,
-			PodName:   pod,
-			Cmd:       PortForwardCMDPrefix + strconv.Itoa(rPort),
+			Namespace: c.Namespace,
+			PodName:   c.PodName,
+			Cmd:       PortForwardCMDPrefix + strconv.Itoa(c.RemotePort),
 		},
 	}
 
-	err := testConnection(ctx, agentId, jwt, initMsg)
+	err := c.testConnection(ctx, initMsg)
 	if err != nil {
 		return err
 	}
@@ -31,18 +40,19 @@ func RunPortForwarding(ctx context.Context, agentId string, ns string, pod strin
 	if host == "" {
 		host = "localhost"
 	}
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, lport))
+	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, c.LocalPort))
 	if err != nil {
 		return err
 	}
 
 	go func() {
 		<-ctx.Done()
+		log.Debugf("Stopping to accept connections")
 		listen.Close()
 	}()
 
 	// setup connection handler
-	acceptIncomingConns(ctx, listen, agentId, jwt, initMsg)
+	c.acceptIncomingConns(ctx, listen, initMsg)
 
 	<-ctx.Done() // chill on ctx
 
@@ -50,9 +60,9 @@ func RunPortForwarding(ctx context.Context, agentId string, ns string, pod strin
 	return nil
 }
 
-func testConnection(ctx context.Context, agentId string, jwt string, initMsg *SessionMessage) error {
+func (c *Controller) testConnection(ctx context.Context, initMsg *SessionMessage) error {
 	// test connect to Komodor WS endpoint
-	ws := NewWSConnectionWrapper(ctx, nil, agentId, jwt, true, *initMsg)
+	ws := NewWSConnectionWrapper(ctx, nil, c.AgentId, c.Token, true, *initMsg)
 	err := ws.Run()
 	if err != nil {
 		log.Warnf("Failed to test port-forward operability: %+v", err)
@@ -67,7 +77,7 @@ func testConnection(ctx context.Context, agentId string, jwt string, initMsg *Se
 	return err
 }
 
-func acceptIncomingConns(ctx context.Context, listen net.Listener, agentId string, jwt string, initMsg *SessionMessage) {
+func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listener, initMsg *SessionMessage) {
 	for {
 		conn, err := listen.Accept()
 		if err != nil {
@@ -76,15 +86,29 @@ func acceptIncomingConns(ctx context.Context, listen net.Listener, agentId strin
 		}
 
 		log.Infof("Accepted connection: %v", conn.LocalAddr())
-		ws := NewWSConnectionWrapper(ctx, conn, agentId, jwt, false, *initMsg)
+		ws := NewWSConnectionWrapper(ctx, conn, c.AgentId, c.Token, false, *initMsg)
 		go func() {
 			<-ctx.Done()
 			ws.Stop()
 		}()
 
 		go func() {
-			ws.Run()
+			err := ws.Run()
+			if err != nil {
+				log.Warnf("Failed to run port-forwarding: %s", err)
+			}
 		}()
 	}
 	log.Infof("Stopped accepting incoming connections")
+}
+
+func NewController(agentId string, ns string, pod string, rPort int, lport int, jwt string) *Controller {
+	return &Controller{
+		AgentId:    agentId,
+		Namespace:  ns,
+		PodName:    pod,
+		RemotePort: rPort,
+		LocalPort:  lport,
+		Token:      jwt,
+	}
 }
