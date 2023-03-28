@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"sync"
 )
 
 type Controller struct {
@@ -51,8 +52,6 @@ func (c *Controller) Run(ctx context.Context) error {
 	// setup connection handler
 	c.acceptIncomingConns(ctx, listen, initMsg)
 
-	<-ctx.Done() // chill on ctx
-
 	// if not errored, shut down open conns gracefully
 	return nil
 }
@@ -75,6 +74,8 @@ func (c *Controller) testConnection(ctx context.Context, initMsg *SessionMessage
 }
 
 func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listener, initMsg *SessionMessage) {
+	wg := sync.WaitGroup{}
+	conns := []*WSConnectionWrapper{}
 	for {
 		conn, err := listen.Accept()
 		if err != nil {
@@ -84,19 +85,32 @@ func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listene
 
 		log.Infof("Accepted connection: %v", conn.LocalAddr())
 		ws := NewWSConnectionWrapper(ctx, conn, c.RemoteSpec.AgentId, c.Token, false, *initMsg)
-		go func() {
-			<-ctx.Done()
-			ws.Stop()
-		}()
+		conns = append(conns, ws)
 
 		go func() {
+			wg.Add(1)
 			err := ws.Run()
 			if err != nil {
 				log.Warnf("Failed to run port-forwarding: %s", err)
 			}
+
+			err = ws.Stop()
+			if err != nil {
+				log.Warnf("Failed to stop port-forwarding: %s", err)
+			}
+			wg.Done()
 		}()
 	}
 	log.Infof("Stopped accepting incoming connections")
+
+	for _, ws := range conns {
+		err := ws.Stop()
+		if err != nil {
+			log.Warnf("Failed to stop port-forwarding: %s", err)
+		}
+	}
+
+	wg.Wait()
 }
 
 func NewController(rSpec RemoteSpec, lport int, jwt string) *Controller {

@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -27,6 +28,8 @@ type WSConnectionWrapper struct {
 
 	chReady  chan struct{}
 	graceful bool
+	mx       sync.Mutex
+	closed   bool
 }
 
 func (w *WSConnectionWrapper) Run() error {
@@ -104,8 +107,8 @@ func (w *WSConnectionWrapper) Run() error {
 	return nil
 }
 
-func (w *WSConnectionWrapper) sendWS(initMsg *SessionMessage) error {
-	txt, err := json.Marshal(initMsg)
+func (w *WSConnectionWrapper) sendWS(msg *SessionMessage) error {
+	txt, err := json.Marshal(msg)
 	if err != nil {
 		log.Errorf("Failed to serialize output message: %s", err)
 		return err
@@ -198,6 +201,15 @@ func (w *WSConnectionWrapper) Read(p []byte) (n int, err error) {
 }
 
 func (w *WSConnectionWrapper) Stop() error {
+	w.mx.Lock()
+	defer w.mx.Unlock()
+
+	if w.closed {
+		log.Debugf("Already stopped")
+		return nil
+	}
+	w.closed = true
+
 	log.Infof("Closing forwarded connection: %v", w.tcpConn)
 	err := w.sendWS(&SessionMessage{
 		MessageId:   uuid.NewString(),
