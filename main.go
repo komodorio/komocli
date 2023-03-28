@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/gin-gonic/gin"
@@ -50,14 +51,35 @@ func main() {
 	}()
 
 	if args[0] == "port-forward" { // TODO: rework into cobra subcommands?
-		rport, err := strconv.Atoi(args[4])
+		// komocli port-forward <agentId> <namespace/pod:port> [local-port]
+		rSpec := portforward.RemoteSpec{
+			AgentId: args[1],
+		}
+
+		parts := strings.Split(args[2], "/")
+		if len(parts) != 2 {
+			log.Fatalf("Invalid format for remote namespace/podName:port")
+		}
+		rSpec.Namespace = parts[0]
+
+		parts = strings.Split(parts[1], ":")
+		if len(parts) != 2 {
+			log.Fatalf("Invalid format for remote namespace/pod:port")
+		}
+		rSpec.PodName = parts[0]
+
+		var err error
+		rSpec.RemotePort, err = strconv.Atoi(parts[1])
 		if err != nil {
 			log.Fatalf("Failed to parse remote port")
 		}
 
-		lport, err := strconv.Atoi(args[5])
-		if err != nil {
-			log.Fatalf("Failed to parse local port")
+		lport := rSpec.RemotePort
+		if len(args) >= 4 {
+			lport, err = strconv.Atoi(args[3])
+			if err != nil {
+				log.Fatalf("Failed to parse local port")
+			}
 		}
 
 		jwt := opts.JWT
@@ -65,7 +87,7 @@ func main() {
 			jwt = os.Getenv("KOMOCLI_JWT")
 		}
 
-		f := portforward.NewController(args[1], args[2], args[3], rport, lport, jwt) // FIXME: very bad CLI interface!
+		f := portforward.NewController(rSpec, lport, jwt) // FIXME: very bad CLI interface!
 		err = f.Run(ctx)
 		if err != nil {
 			log.Fatalf("Error while trying to forward port: %+v", err)

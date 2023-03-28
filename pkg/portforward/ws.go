@@ -25,7 +25,8 @@ type WSConnectionWrapper struct {
 	SessionId  string
 	initMsg    *SessionMessage
 
-	chReady chan struct{}
+	chReady  chan struct{}
+	graceful bool
 }
 
 func (w *WSConnectionWrapper) Run() error {
@@ -78,7 +79,11 @@ func (w *WSConnectionWrapper) Run() error {
 		n, err := io.Copy(w, w.tcpConn)
 		log.Infof("Done tcp->ws transfer: %d bytes", n)
 		if err != nil {
-			log.Warnf("Problems transfering tcp->ws: %s", err)
+			if w.graceful {
+				log.Debugf("Result of transfering tcp->ws: %s", err)
+			} else {
+				log.Warnf("Problems transfering tcp->ws: %s", err)
+			}
 		}
 	}()
 
@@ -170,14 +175,23 @@ func (w *WSConnectionWrapper) Read(p []byte) (n int, err error) {
 		close(w.chReady) // ready to write data into WS
 	}
 
-	if msg.MessageType == MTStdout {
+	switch msg.MessageType {
+	case MTStdout:
 		payload := []byte(msg.Data.(*PodExecStdoutData).Out)
 		copy(p, payload) // FIXME: copy buffered!
 		n = len(payload)
-	} else if w.isConnTest && msg.MessageType == MTAck {
-		err = io.EOF // enough for connection test
-	} else if msg.MessageType == MTError {
+	case MTAck:
+		if w.isConnTest {
+			err = io.EOF // enough for connection test
+		} // ok otherwise
+	case MTError:
 		err = fmt.Errorf("received error from remote: %s", msg.Data.(*PodExecErrorData).ErrorMessage)
+	case MTTermination:
+		log.Infof("Got termination message, gotta shutdown")
+		w.graceful = true
+		err = io.EOF
+	default:
+		log.Warnf("Unhandled WS message: %s", msg)
 	}
 
 	return n, err
