@@ -14,14 +14,14 @@ type MessageType string
 
 const (
 	MTPodExecInit  MessageType = "pod_exec_init"
-	MTStdin                    = "stdin"
-	MTStdout                   = "stdout"
-	MTTermination              = "termination"
-	MTTerminalSize             = "terminal-size"
-	MTKeepAlive                = "keep-alive"
-	MTAck                      = "ack"
-	MTPing                     = "ping"
-	MTError                    = "error"
+	MTStdin        MessageType = "stdin"
+	MTStdout       MessageType = "stdout"
+	MTTermination  MessageType = "termination"
+	MTTerminalSize MessageType = "terminal-size"
+	MTKeepAlive    MessageType = "keep-alive"
+	MTAck          MessageType = "ack"
+	MTPing         MessageType = "ping"
+	MTError        MessageType = "error"
 )
 
 type SessionMessage struct {
