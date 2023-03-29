@@ -87,8 +87,8 @@ func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listene
 		ws := NewWSConnectionWrapper(ctx, conn, c.RemoteSpec.AgentId, c.Token, false, *initMsg)
 		conns = append(conns, ws)
 
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
 			err := ws.Run()
 			if err != nil {
 				log.Warnf("Failed to run port-forwarding: %s", err)
