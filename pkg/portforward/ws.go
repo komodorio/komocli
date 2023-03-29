@@ -3,6 +3,7 @@ package portforward
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
@@ -30,6 +31,7 @@ type WSConnectionWrapper struct {
 	graceful bool
 	mx       sync.Mutex
 	closed   bool
+	readBuf  bytes.Buffer
 }
 
 func (w *WSConnectionWrapper) Run() error {
@@ -145,7 +147,7 @@ func (w *WSConnectionWrapper) Write(p []byte) (n int, err error) {
 		SessionId:   w.SessionId,
 		MessageType: MTStdin,
 		Data: &PodExecStdinData{
-			Input: string(p),
+			Input: base64.StdEncoding.EncodeToString(p),
 		},
 		Timestamp: time.Now(),
 	}
@@ -159,18 +161,42 @@ func (w *WSConnectionWrapper) Write(p []byte) (n int, err error) {
 	return len(p), err
 }
 
-func (w *WSConnectionWrapper) Read(p []byte) (n int, err error) {
+func (w *WSConnectionWrapper) Read(b []byte) (int, error) {
+	// read from pushed msg into b
+	n, err := w.readBuf.Read(b)
+	if err == io.EOF {
+		if !w.closed {
+			err = nil // let it just finish the iteration
+		}
+
+		if n == 0 {
+			// wait for the next chunk to arrive
+			err2 := w.readWS()
+			if err2 != nil {
+				err = err2
+			} // othwerwise err=EOF
+		}
+	}
+
+	if n > 0 {
+		log.Debugf("Bridged ws->tcp: %d bytes", n)
+	}
+
+	return n, err
+}
+
+func (w *WSConnectionWrapper) readWS() error {
 	_, bts, err := w.wsConn.ReadMessage()
 	if err != nil {
 		log.Warnf("Failed to read message from WS: %s", err)
-		return len(bts), err
+		return err
 	}
 
 	log.Debugf("Read msg over WS: %s", bts)
 	var msg SessionMessage
 	err = json.Unmarshal(bts, &msg)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	if msg.MessageType == MTAck && msg.Data.(*PodExecAckData).AckedMessageID == w.initMsg.MessageId {
@@ -180,9 +206,24 @@ func (w *WSConnectionWrapper) Read(p []byte) (n int, err error) {
 
 	switch msg.MessageType {
 	case MTStdout:
-		payload := []byte(msg.Data.(*PodExecStdoutData).Out)
-		copy(p, payload) // FIXME: copy buffered!
-		n = len(payload)
+		payload, err := base64.StdEncoding.DecodeString(msg.Data.(*PodExecStdoutData).Out)
+		if err != nil {
+			err := w.sendWS(&SessionMessage{
+				MessageId:   uuid.NewString(),
+				SessionId:   w.SessionId,
+				MessageType: MTError,
+				Data: &PodExecErrorData{
+					OriginalMessageID: msg.MessageId,
+					ErrorMessage:      fmt.Sprintf("Failed to decode Base64: %s", err),
+				},
+				Timestamp: time.Now(),
+			})
+			if err != nil {
+				log.Debugf("Failed to send WS err: %s", err)
+			}
+		} else {
+			w.readBuf.Write(payload)
+		}
 	case MTAck:
 		if w.isConnTest {
 			err = io.EOF // enough for connection test
@@ -197,7 +238,7 @@ func (w *WSConnectionWrapper) Read(p []byte) (n int, err error) {
 		log.Warnf("Unhandled WS message: %s", msg)
 	}
 
-	return n, err
+	return err
 }
 
 func (w *WSConnectionWrapper) Stop() error {
