@@ -6,22 +6,21 @@ import (
 	"time"
 )
 
-const PortForwardCMDPrefix = "komodor-port-forward "
-
 // NOTICE: below types should be in sync with mono/services/ws-hub/app/internal/handlers/messageUtils.go, any changes should be backward-compatible
 
 type MessageType string
 
 const (
-	MTPodExecInit  MessageType = "pod_exec_init"
-	MTStdin        MessageType = "stdin"
-	MTStdout       MessageType = "stdout"
-	MTTermination  MessageType = "termination"
-	MTTerminalSize MessageType = "terminal-size"
-	MTKeepAlive    MessageType = "keep-alive"
-	MTAck          MessageType = "ack"
-	MTPing         MessageType = "ping"
-	MTError        MessageType = "error"
+	MTPodExecInit     MessageType = "pod_exec_init"
+	MTPortForwardInit MessageType = "port_forward_init"
+	MTStdin           MessageType = "stdin"
+	MTStdout          MessageType = "stdout"
+	MTTermination     MessageType = "termination"
+	MTTerminalSize    MessageType = "terminal-size"
+	MTKeepAlive       MessageType = "keep-alive"
+	MTAck             MessageType = "ack"
+	MTPing            MessageType = "ping"
+	MTError           MessageType = "error"
 )
 
 type SessionMessage struct {
@@ -49,23 +48,25 @@ func (m *SessionMessage) UnmarshalJSON(b []byte) error {
 	// find the right type
 	switch m.MessageType {
 	case MTPodExecInit:
-		m.Data = &PodExecInitData{}
+		m.Data = &WSPodExecInitData{}
+	case MTPortForwardInit:
+		m.Data = &WSPortForwardInitData{}
 	case MTStdin:
-		m.Data = &PodExecStdinData{}
+		m.Data = &WSStdinData{}
 	case MTStdout:
-		m.Data = &PodExecStdoutData{}
+		m.Data = &WSStdoutData{}
 	case MTTerminalSize:
-		m.Data = &PodExecTerminalSizeData{}
+		m.Data = &WSTerminalSizeData{}
 	case MTTermination:
-		m.Data = &PodExecSessionTerminationData{}
+		m.Data = &WSSessionTerminationData{}
 	case MTKeepAlive:
-		m.Data = &PodExecKeepaliveData{}
+		m.Data = &WSKeepaliveData{}
 	case MTAck:
-		m.Data = &PodExecAckData{}
+		m.Data = &WSAckData{}
 	case MTPing:
-		m.Data = &PodExecPingData{}
+		m.Data = &WSPingData{}
 	case MTError:
-		m.Data = &PodExecErrorData{}
+		m.Data = &WSErrorData{}
 	default:
 		return fmt.Errorf("unsupported message type %s", m.MessageType)
 	}
@@ -78,42 +79,48 @@ func (m *SessionMessage) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type PodExecInitData struct {
+type WSPodExecInitData struct {
 	Namespace     string `json:"namespace"`
 	PodName       string `json:"podName"`
 	ContainerName string `json:"containerName"`
 	Cmd           string `json:"cmd"`
 }
 
-type PodExecStdinData struct {
+type WSPortForwardInitData struct {
+	Namespace string `json:"namespace"`
+	PodName   string `json:"podName"`
+	Port      int    `json:"port"`
+}
+
+type WSStdinData struct {
 	Input string `json:"input"`
 }
 
-type PodExecStdoutData struct {
+type WSStdoutData struct {
 	Out string `json:"out"`
 }
 
-type PodExecSessionTerminationData struct {
+type WSSessionTerminationData struct {
 	ProcessExitCode int    `json:"processExitCode"`
 	ExitMessage     string `json:"exitMessage"`
 }
 
-type PodExecKeepaliveData struct {
+type WSKeepaliveData struct {
 }
 
-type PodExecPingData struct {
+type WSPingData struct {
 }
 
-type PodExecAckData struct {
+type WSAckData struct {
 	AckedMessageID string `json:"ackedMessageID"`
 }
 
-type PodExecTerminalSizeData struct { // https://pkg.go.dev/k8s.io/client-go/tools/remotecommand#TerminalSize
+type WSTerminalSizeData struct { // https://pkg.go.dev/k8s.io/client-go/tools/remotecommand#TerminalSize
 	Width  uint16 `json:"width"`
 	Height uint16 `json:"height"`
 }
 
-type PodExecErrorData struct {
+type WSErrorData struct {
 	OriginalMessageID string `json:"originalMessageID"`
 	ErrorMessage      string `json:"errorMessage"`
 }

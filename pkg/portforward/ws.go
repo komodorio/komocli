@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -73,6 +74,9 @@ func (w *WSConnectionWrapper) Run() error {
 		return err
 	}
 
+	readingDone := make(chan struct{})
+	writingDone := make(chan struct{})
+
 	// write loop
 	go func() {
 		if w.isConnTest {
@@ -83,30 +87,68 @@ func (w *WSConnectionWrapper) Run() error {
 		log.Debugf("Starting tcp->ws transfer")
 		n, err := io.Copy(w, w.tcpConn)
 		log.Infof("Done tcp->ws transfer: %d bytes", n)
-		if err != nil {
-			if w.graceful {
-				log.Debugf("Result of transfering tcp->ws: %s", err)
-			} else {
-				log.Warnf("Problems transfering tcp->ws: %s", err)
-			}
+		if err != nil && !isConnClosedErr(err) {
+			log.Warnf("Problems transfering tcp->ws: %s", err)
 		}
+		close(readingDone)
 	}()
 
-	// read loop
-	var wr io.Writer
-	if w.isConnTest {
-		wr = &bytes.Buffer{}
-	} else {
-		wr = w.tcpConn
-	}
-	n, err := io.Copy(wr, w)
-	log.Infof("Done ws->tcp transfer: %d bytes", n)
-	if err != nil {
-		log.Warnf("Problems in ws->tcp transfer: %s", err)
-		return err
+	go func() {
+		// read loop
+		var wr io.Writer
+		if w.isConnTest {
+			wr = &bytes.Buffer{}
+		} else {
+			wr = w.tcpConn
+		}
+		n, err := io.Copy(wr, w)
+		log.Infof("Done ws->tcp transfer: %d bytes", n)
+		if err != nil && !isConnClosedErr(err) {
+			log.Warnf("Problems in ws->tcp transfer: %s", err)
+		}
+		close(writingDone)
+	}()
+
+	go w.loopKeepAlive()
+
+	select { // wait either
+	case <-writingDone:
+	case <-readingDone:
 	}
 
-	return nil
+	return w.Stop()
+}
+
+func (w *WSConnectionWrapper) loopKeepAlive() {
+	ticker := time.NewTicker(5 * time.Second) // TODO: parameterize it?
+	defer ticker.Stop()
+
+	for {
+		_, ok := <-ticker.C
+		if !ok || w.closed { // if it is stopped
+			break
+		}
+
+		select {
+		case <-w.ctx.Done():
+			break
+		default:
+		}
+
+		err := w.sendWS(w.newSessMessage(MTKeepAlive, &WSKeepaliveData{}))
+		if err != nil {
+			log.Errorf("Failed to send keep-alive message: %s", err)
+			err := w.Stop()
+			if err != nil {
+				log.Warnf("Failed to stop session: %s", err)
+			}
+			break
+		}
+
+		// TODO: wait for ack, break if it does not arrive
+	}
+
+	log.Debugf("KeepAlive loop done")
 }
 
 func (w *WSConnectionWrapper) sendWS(msg *SessionMessage) error {
@@ -142,17 +184,11 @@ func (w *WSConnectionWrapper) Write(p []byte) (n int, err error) {
 	<-w.chReady // we need to wait for ack before writing anything
 
 	// we received data via TCP and now want to translate it into WS message
-	msg := SessionMessage{
-		MessageId:   uuid.New().String(),
-		SessionId:   w.SessionId,
-		MessageType: MTStdin,
-		Data: &PodExecStdinData{
-			Input: base64.StdEncoding.EncodeToString(p),
-		},
-		Timestamp: time.Now(),
-	}
+	msg := w.newSessMessage(MTStdin, &WSStdinData{
+		Input: base64.StdEncoding.EncodeToString(p),
+	})
 
-	err = w.sendWS(&msg)
+	err = w.sendWS(msg)
 	if err != nil {
 		return 0, err
 	}
@@ -199,25 +235,19 @@ func (w *WSConnectionWrapper) readWS() error {
 		return err
 	}
 
-	if msg.MessageType == MTAck && msg.Data.(*PodExecAckData).AckedMessageID == w.initMsg.MessageId {
+	if msg.MessageType == MTAck && msg.Data.(*WSAckData).AckedMessageID == w.initMsg.MessageId {
 		w.SessionId = msg.SessionId
 		close(w.chReady) // ready to write data into WS
 	}
 
 	switch msg.MessageType {
 	case MTStdout:
-		payload, err := base64.StdEncoding.DecodeString(msg.Data.(*PodExecStdoutData).Out)
+		payload, err := base64.StdEncoding.DecodeString(msg.Data.(*WSStdoutData).Out)
 		if err != nil {
-			err := w.sendWS(&SessionMessage{
-				MessageId:   uuid.NewString(),
-				SessionId:   w.SessionId,
-				MessageType: MTError,
-				Data: &PodExecErrorData{
-					OriginalMessageID: msg.MessageId,
-					ErrorMessage:      fmt.Sprintf("Failed to decode Base64: %s", err),
-				},
-				Timestamp: time.Now(),
-			})
+			err := w.sendWS(w.newSessMessage(MTError, &WSErrorData{
+				OriginalMessageID: msg.MessageId,
+				ErrorMessage:      fmt.Sprintf("Failed to decode Base64: %s", err),
+			}))
 			if err != nil {
 				log.Debugf("Failed to send WS err: %s", err)
 			}
@@ -229,7 +259,7 @@ func (w *WSConnectionWrapper) readWS() error {
 			err = io.EOF // enough for connection test
 		} // ok otherwise
 	case MTError:
-		err = fmt.Errorf("received error from remote: %s", msg.Data.(*PodExecErrorData).ErrorMessage)
+		err = fmt.Errorf("received error from remote: %s", msg.Data.(*WSErrorData).ErrorMessage)
 	case MTTermination:
 		log.Infof("Got termination message, gotta shutdown")
 		w.graceful = true
@@ -252,16 +282,10 @@ func (w *WSConnectionWrapper) Stop() error {
 	w.closed = true
 
 	log.Infof("Closing forwarded connection: %v", w.tcpConn)
-	err := w.sendWS(&SessionMessage{
-		MessageId:   uuid.NewString(),
-		SessionId:   w.SessionId,
-		MessageType: MTTermination,
-		Data: &PodExecSessionTerminationData{
-			ProcessExitCode: 0,
-			ExitMessage:     "Stopping",
-		},
-		Timestamp: time.Now(),
-	})
+	err := w.sendWS(w.newSessMessage(MTTermination, &WSSessionTerminationData{
+		ProcessExitCode: 0,
+		ExitMessage:     "Stopping",
+	}))
 	if err != nil {
 		log.Debugf("Failed to send WS termination: %s", err)
 		return err
@@ -278,6 +302,16 @@ func (w *WSConnectionWrapper) Stop() error {
 	return nil
 }
 
+func (w *WSConnectionWrapper) newSessMessage(t MessageType, payload interface{}) *SessionMessage {
+	return &SessionMessage{
+		MessageId:   uuid.NewString(),
+		SessionId:   w.SessionId,
+		MessageType: t,
+		Data:        payload,
+		Timestamp:   time.Now(),
+	}
+}
+
 func NewWSConnectionWrapper(ctx context.Context, conn net.Conn, agentId string, jwt string, isConnTest bool, initMsg SessionMessage) *WSConnectionWrapper {
 	return &WSConnectionWrapper{
 		ctx:        ctx,
@@ -290,4 +324,8 @@ func NewWSConnectionWrapper(ctx context.Context, conn net.Conn, agentId string, 
 
 		chReady: make(chan struct{}),
 	}
+}
+
+func isConnClosedErr(err error) bool {
+	return strings.Contains(strings.ToLower(err.Error()), "use of closed network connection")
 }

@@ -6,7 +6,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
-	"strconv"
 	"sync"
 )
 
@@ -19,11 +18,11 @@ type Controller struct {
 func (c *Controller) Run(ctx context.Context) error {
 	// template message for session starts
 	initMsg := &SessionMessage{
-		MessageType: MTPodExecInit,
-		Data: &PodExecInitData{
+		MessageType: MTPortForwardInit,
+		Data: &WSPortForwardInitData{
 			Namespace: c.RemoteSpec.Namespace,
 			PodName:   c.RemoteSpec.PodName,
-			Cmd:       PortForwardCMDPrefix + strconv.Itoa(c.RemoteSpec.RemotePort),
+			Port:      c.RemoteSpec.RemotePort,
 		},
 	}
 
@@ -79,7 +78,9 @@ func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listene
 	for {
 		conn, err := listen.Accept()
 		if err != nil {
-			log.Warnf("Failed to accept incoming connection: %+v", err)
+			if !isConnClosedErr(err) {
+				log.Warnf("Failed to accept incoming connection: %+v", err)
+			}
 			break
 		}
 
