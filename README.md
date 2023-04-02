@@ -5,4 +5,7 @@ CLI to interact with Komodor platform
 
 - TODOs in the code
 - have nicer CLI param for port forward
-- make graceful shutdown work properly, right now it hangs
+- use cobra and make sure --help is meaningful
+- add timeouts for getting acks
+- test when wrong agent ID
+- test when agent is down
