@@ -115,6 +115,7 @@ func (w *WSConnectionWrapper) Run() error {
 	}
 
 	select { // wait either
+	case <-w.ctx.Done():
 	case e := <-writingDone:
 		err = e
 	case <-readingDone:
