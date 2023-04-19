@@ -21,7 +21,7 @@ func (c *Controller) Run(ctx context.Context) error {
 		MessageType: MTPortForwardInit,
 		Data: &WSPortForwardInitData{
 			Namespace: c.RemoteSpec.Namespace,
-			PodName:   c.RemoteSpec.PodName,
+			Resource:  c.RemoteSpec.PodName,
 			Port:      c.RemoteSpec.RemotePort,
 		},
 	}

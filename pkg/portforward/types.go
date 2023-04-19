@@ -88,7 +88,7 @@ type WSPodExecInitData struct {
 
 type WSPortForwardInitData struct {
 	Namespace string `json:"namespace"`
-	PodName   string `json:"podName"`
+	Resource  string `json:"resource"`
 	Port      int    `json:"port"`
 }
 

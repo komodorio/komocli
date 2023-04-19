@@ -75,7 +75,7 @@ func (w *WSConnectionWrapper) Run() error {
 	}
 
 	readingDone := make(chan struct{})
-	writingDone := make(chan struct{})
+	writingDone := make(chan error)
 
 	// write loop
 	go func() {
@@ -105,18 +105,27 @@ func (w *WSConnectionWrapper) Run() error {
 		log.Infof("Done ws->tcp transfer: %d bytes", n)
 		if err != nil && !isConnClosedErr(err) {
 			log.Warnf("Problems in ws->tcp transfer: %s", err)
+			writingDone <- err
 		}
 		close(writingDone)
 	}()
 
-	go w.loopKeepAlive()
+	if !w.isConnTest {
+		go w.loopKeepAlive()
+	}
 
 	select { // wait either
-	case <-writingDone:
+	case e := <-writingDone:
+		err = e
 	case <-readingDone:
 	}
 
-	return w.Stop()
+	e := w.Stop()
+	if err == nil { // don't mask previous error
+		err = e
+	}
+
+	return err
 }
 
 func (w *WSConnectionWrapper) loopKeepAlive() {
