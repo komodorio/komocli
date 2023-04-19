@@ -19,9 +19,9 @@ JWT token can be specified via env variable `KOMOCLI_JWT`
 
 - TODOs in the code
 - have nicer CLI param for port forward
-- use cobra and make sure --help is meaningful
+- make sure --help is meaningful
 - add timeouts for getting acks
-- support service as specification
+- support service as PF specification
 - test when wrong agent ID
 - test when agent is down
 - test when agent shuts down mid-session
