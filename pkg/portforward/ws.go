@@ -179,11 +179,11 @@ func (w *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error {
 	}
 
 	if needsAck {
-		ctx, _ := context.WithTimeout(w.ctx, w.timeout) // TODO: save cancelfn, too?
+		ctx, cancel := context.WithTimeout(w.ctx, w.timeout) // TODO: save cancelfn, too?
 		w.timeoutCtx[msg.MessageId] = ctx
 
 		go func() {
-			//defer cancel()
+			defer cancel()
 			<-ctx.Done()
 			if _, found := w.timeoutCtx[msg.MessageId]; found {
 				if ctx.Err() != nil {
