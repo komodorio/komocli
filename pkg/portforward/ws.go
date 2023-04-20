@@ -71,7 +71,7 @@ func (w *WSConnectionWrapper) Run() error {
 	w.initMsg.MessageId = uuid.New().String()
 	w.initMsg.Timestamp = time.Now()
 
-	err = w.sendWS(w.initMsg)
+	err = w.sendWS(w.initMsg, true)
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func (w *WSConnectionWrapper) loopKeepAlive() {
 		default:
 		}
 
-		err := w.sendWS(w.newSessMessage(MTKeepAlive, &WSKeepaliveData{}))
+		err := w.sendWS(w.newSessMessage(MTKeepAlive, &WSKeepaliveData{}), true)
 		if err != nil {
 			log.Errorf("Failed to send keep-alive message: %s", err)
 			err := w.Stop()
@@ -164,7 +164,7 @@ func (w *WSConnectionWrapper) loopKeepAlive() {
 	log.Debugf("KeepAlive loop done")
 }
 
-func (w *WSConnectionWrapper) sendWS(msg *SessionMessage) error {
+func (w *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error {
 	txt, err := json.Marshal(msg)
 	if err != nil {
 		log.Errorf("Failed to serialize output message: %s", err)
@@ -178,7 +178,24 @@ func (w *WSConnectionWrapper) sendWS(msg *SessionMessage) error {
 		return err
 	}
 
-	w.timeoutCtx[msg.MessageId], _ = context.WithTimeout(w.ctx, w.timeout) // TODO: save cancelfn, too?
+	if needsAck {
+		ctx, _ := context.WithTimeout(w.ctx, w.timeout) // TODO: save cancelfn, too?
+		w.timeoutCtx[msg.MessageId] = ctx
+
+		go func() {
+			//defer cancel()
+			<-ctx.Done()
+			if _, found := w.timeoutCtx[msg.MessageId]; found {
+				if ctx.Err() != nil {
+					log.Warnf("Did not receive ack within timeout for message %s: %s", msg.MessageId, ctx.Err())
+					err := w.Stop()
+					if err != nil {
+						log.Warnf("Failed to stop session: %s", err)
+					}
+				}
+			}
+		}()
+	}
 
 	return nil
 }
@@ -204,7 +221,7 @@ func (w *WSConnectionWrapper) Write(p []byte) (n int, err error) {
 		Input: base64.StdEncoding.EncodeToString(p),
 	})
 
-	err = w.sendWS(msg)
+	err = w.sendWS(msg, true)
 	if err != nil {
 		return 0, err
 	}
@@ -240,7 +257,9 @@ func (w *WSConnectionWrapper) Read(b []byte) (int, error) {
 func (w *WSConnectionWrapper) readWS() error {
 	_, bts, err := w.wsConn.ReadMessage()
 	if err != nil {
-		log.Warnf("Failed to read message from WS: %s", err)
+		if !isConnClosedErr(err) {
+			log.Warnf("Failed to read message from WS: %s", err)
+		}
 		return err
 	}
 
@@ -263,7 +282,7 @@ func (w *WSConnectionWrapper) readWS() error {
 			err := w.sendWS(w.newSessMessage(MTError, &WSErrorData{
 				OriginalMessageID: msg.MessageId,
 				ErrorMessage:      fmt.Sprintf("Failed to decode Base64: %s", err),
-			}))
+			}), false)
 			if err != nil {
 				log.Debugf("Failed to send WS err: %s", err)
 			}
@@ -310,7 +329,7 @@ func (w *WSConnectionWrapper) Stop() error {
 	err := w.sendWS(w.newSessMessage(MTTermination, &WSSessionTerminationData{
 		ProcessExitCode: 0,
 		ExitMessage:     "Stopping",
-	}))
+	}), false)
 	if err != nil {
 		log.Debugf("Failed to send WS termination: %s", err)
 		return err
