@@ -7,12 +7,14 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 )
 
 type Controller struct {
 	RemoteSpec RemoteSpec
 	LocalPort  int
 	Token      string
+	timeout    time.Duration
 }
 
 func (c *Controller) Run(ctx context.Context) error {
@@ -57,7 +59,7 @@ func (c *Controller) Run(ctx context.Context) error {
 
 func (c *Controller) testConnection(ctx context.Context, initMsg *SessionMessage) error {
 	// test connect to Komodor WS endpoint
-	ws := NewWSConnectionWrapper(ctx, nil, c.RemoteSpec.AgentId, c.Token, true, *initMsg)
+	ws := NewWSConnectionWrapper(ctx, nil, c.RemoteSpec.AgentId, c.Token, true, *initMsg, c.timeout)
 	err := ws.Run()
 	if err != nil {
 		log.Warnf("Failed to test port-forward operability: %+v", err)
@@ -85,7 +87,7 @@ func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listene
 		}
 
 		log.Infof("Accepted connection: %v", conn.LocalAddr())
-		ws := NewWSConnectionWrapper(ctx, conn, c.RemoteSpec.AgentId, c.Token, false, *initMsg)
+		ws := NewWSConnectionWrapper(ctx, conn, c.RemoteSpec.AgentId, c.Token, false, *initMsg, c.timeout)
 		conns = append(conns, ws)
 
 		wg.Add(1)
@@ -114,11 +116,12 @@ func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listene
 	wg.Wait()
 }
 
-func NewController(rSpec RemoteSpec, lport int, jwt string) *Controller {
+func NewController(rSpec RemoteSpec, lport int, jwt string, timeout time.Duration) *Controller {
 	return &Controller{
 		RemoteSpec: rSpec,
 		LocalPort:  lport,
 		Token:      jwt,
+		timeout:    timeout,
 	}
 }
 

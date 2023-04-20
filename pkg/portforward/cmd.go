@@ -7,9 +7,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const flagJWT = "jwt"
+const flagTimeout = "timeout"
 
 var Command = &cobra.Command{
 	// komocli port-forward <agentId> <namespace/pod:port> [local-port]
@@ -22,15 +24,21 @@ var Command = &cobra.Command{
 			return err
 		}
 
-		return run(cmd.Context(), args[0], args[1], args[2], jwt)
+		timeout, err := cmd.Flags().GetDuration(flagTimeout)
+		if err != nil {
+			return err
+		}
+
+		return run(cmd.Context(), args[0], args[1], args[2], jwt, timeout)
 	},
 }
 
 func init() {
 	Command.Flags().String(flagJWT, "", "JWT Authentication token")
+	Command.Flags().Duration(flagTimeout, 5*time.Second, "Timeout for operations")
 }
 
-func run(ctx context.Context, agent string, remote string, local string, jwt string) error {
+func run(ctx context.Context, agent string, remote string, local string, jwt string, timeout time.Duration) error {
 	rSpec := RemoteSpec{
 		AgentId: agent,
 	}
@@ -65,7 +73,7 @@ func run(ctx context.Context, agent string, remote string, local string, jwt str
 		jwt = os.Getenv("KOMOCLI_JWT")
 	}
 
-	f := NewController(rSpec, lport, jwt) // FIXME: very bad CLI interface!
+	f := NewController(rSpec, lport, jwt, timeout) // FIXME: very bad CLI interface!
 	err = f.Run(ctx)
 	if err != nil {
 		return fmt.Errorf("error while trying to forward port: %w", err)

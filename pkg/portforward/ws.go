@@ -28,11 +28,13 @@ type WSConnectionWrapper struct {
 	SessionId  string
 	initMsg    *SessionMessage
 
-	chReady  chan struct{}
-	graceful bool
-	mx       sync.Mutex
-	closed   bool
-	readBuf  bytes.Buffer
+	chReady    chan struct{}
+	graceful   bool
+	mx         sync.Mutex
+	closed     bool
+	readBuf    bytes.Buffer
+	timeout    time.Duration
+	timeoutCtx map[string]context.Context
 }
 
 func (w *WSConnectionWrapper) Run() error {
@@ -77,8 +79,8 @@ func (w *WSConnectionWrapper) Run() error {
 	readingDone := make(chan struct{})
 	writingDone := make(chan error)
 
-	// write loop
 	go func() {
+		// write loop
 		if w.isConnTest {
 			log.Debugf("Not trying to send data due to validation loop")
 			return
@@ -116,6 +118,7 @@ func (w *WSConnectionWrapper) Run() error {
 
 	select { // wait either
 	case <-w.ctx.Done():
+		err = w.ctx.Err()
 	case e := <-writingDone:
 		err = e
 	case <-readingDone:
@@ -174,6 +177,9 @@ func (w *WSConnectionWrapper) sendWS(msg *SessionMessage) error {
 		log.Errorf("Failed to send output message over WS: %s", err)
 		return err
 	}
+
+	w.timeoutCtx[msg.MessageId], _ = context.WithTimeout(w.ctx, w.timeout) // TODO: save cancelfn, too?
+
 	return nil
 }
 
@@ -267,7 +273,16 @@ func (w *WSConnectionWrapper) readWS() error {
 	case MTAck:
 		if w.isConnTest {
 			err = io.EOF // enough for connection test
-		} // ok otherwise
+		}
+
+		acked := msg.Data.(*WSAckData).AckedMessageID
+
+		if _, ok := w.timeoutCtx[acked]; ok {
+			delete(w.timeoutCtx, acked)
+		} else {
+			log.Warnf("Received ack for unexpected message ID: %s", acked)
+		}
+
 	case MTError:
 		err = fmt.Errorf("received error from remote: %s", msg.Data.(*WSErrorData).ErrorMessage)
 	case MTTermination:
@@ -309,7 +324,7 @@ func (w *WSConnectionWrapper) Stop() error {
 		}
 	}
 
-	return nil
+	return w.wsConn.Close()
 }
 
 func (w *WSConnectionWrapper) newSessMessage(t MessageType, payload interface{}) *SessionMessage {
@@ -322,7 +337,7 @@ func (w *WSConnectionWrapper) newSessMessage(t MessageType, payload interface{})
 	}
 }
 
-func NewWSConnectionWrapper(ctx context.Context, conn net.Conn, agentId string, jwt string, isConnTest bool, initMsg SessionMessage) *WSConnectionWrapper {
+func NewWSConnectionWrapper(ctx context.Context, conn net.Conn, agentId string, jwt string, isConnTest bool, initMsg SessionMessage, timeout time.Duration) *WSConnectionWrapper {
 	return &WSConnectionWrapper{
 		ctx:        ctx,
 		tcpConn:    conn,
@@ -333,6 +348,9 @@ func NewWSConnectionWrapper(ctx context.Context, conn net.Conn, agentId string, 
 		jwt:     jwt,
 
 		chReady: make(chan struct{}),
+
+		timeout:    timeout,
+		timeoutCtx: map[string]context.Context{},
 	}
 }
 
