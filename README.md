@@ -17,10 +17,8 @@ JWT token can be specified via env variable `KOMOCLI_JWT`
 
 # Roadmap, Ideas, TODOs
 
-- TODOs in the code
-- have nicer CLI param for port forward
+- have nicer CLI param for port forward, more kubectl-like
 - make sure --help is meaningful
-- add timeouts for getting acks
 - support service as PF specification
 - test when wrong agent ID
 - test when agent is down

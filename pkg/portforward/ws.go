@@ -157,8 +157,6 @@ func (w *WSConnectionWrapper) loopKeepAlive() {
 			}
 			break
 		}
-
-		// TODO: wait for ack, break if it does not arrive
 	}
 
 	log.Debugf("KeepAlive loop done")

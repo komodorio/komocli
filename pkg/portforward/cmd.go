@@ -73,7 +73,7 @@ func run(ctx context.Context, agent string, remote string, local string, jwt str
 		jwt = os.Getenv("KOMOCLI_JWT")
 	}
 
-	f := NewController(rSpec, lport, jwt, timeout) // FIXME: very bad CLI interface!
+	f := NewController(rSpec, lport, jwt, timeout)
 	err = f.Run(ctx)
 	if err != nil {
 		return fmt.Errorf("error while trying to forward port: %w", err)
