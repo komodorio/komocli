@@ -18,6 +18,8 @@ import (
 	"time"
 )
 
+const DefaultWSAddress = "wss://app.komodor.com"
+
 type WSConnectionWrapper struct {
 	ctx        context.Context
 	tcpConn    net.Conn
@@ -47,7 +49,7 @@ func (w *WSConnectionWrapper) Run() error {
 
 	base := os.Getenv("KOMOCLI_WS_URL")
 	if base == "" {
-		base = "wss://app.komodor.com"
+		base = DefaultWSAddress
 	}
 
 	hdr := http.Header{}
