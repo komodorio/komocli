@@ -66,7 +66,6 @@ var RootCmd = &cobra.Command{
 func init() {
 	RootCmd.PersistentFlags().BoolP("verbose", "v", false, "Show verbose debug information and logging")
 
-	//RootCmd.PersistentFlags().Bool()
 	RootCmd.AddCommand(portforward.Command)
 }
 

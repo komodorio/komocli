@@ -28,13 +28,13 @@ type WSConnectionWrapper struct {
 	SessionId  string
 	initMsg    *SessionMessage
 
-	chReady    chan struct{}
-	graceful   bool
-	mx         sync.Mutex
-	closed     bool
-	readBuf    bytes.Buffer
-	timeout    time.Duration
-	timeoutCtx map[string]context.Context
+	chReady            chan struct{}
+	graceful           bool
+	mx                 sync.Mutex
+	closed             bool
+	readBuf            bytes.Buffer
+	timeout            time.Duration
+	pendingAckMessages map[string]context.CancelFunc
 }
 
 func (w *WSConnectionWrapper) Run() error {
@@ -67,11 +67,7 @@ func (w *WSConnectionWrapper) Run() error {
 		return err
 	}
 
-	// write initial msg
-	w.initMsg.MessageId = uuid.New().String()
-	w.initMsg.Timestamp = time.Now()
-
-	err = w.sendWS(w.initMsg, true)
+	err = w.init()
 	if err != nil {
 		return err
 	}
@@ -79,42 +75,9 @@ func (w *WSConnectionWrapper) Run() error {
 	readingDone := make(chan struct{})
 	writingDone := make(chan error)
 
-	go func() {
-		// write loop
-		if w.isConnTest {
-			log.Debugf("Not trying to send data due to validation loop")
-			return
-		}
-
-		log.Debugf("Starting tcp->ws transfer")
-		n, err := io.Copy(w, w.tcpConn)
-		log.Infof("Done tcp->ws transfer: %d bytes", n)
-		if err != nil && !isConnClosedErr(err) {
-			log.Warnf("Problems transfering tcp->ws: %s", err)
-		}
-		close(readingDone)
-	}()
-
-	go func() {
-		// read loop
-		var wr io.Writer
-		if w.isConnTest {
-			wr = &bytes.Buffer{}
-		} else {
-			wr = w.tcpConn
-		}
-		n, err := io.Copy(wr, w)
-		log.Infof("Done ws->tcp transfer: %d bytes", n)
-		if err != nil && !isConnClosedErr(err) {
-			log.Warnf("Problems in ws->tcp transfer: %s", err)
-			writingDone <- err
-		}
-		close(writingDone)
-	}()
-
-	if !w.isConnTest {
-		go w.loopKeepAlive()
-	}
+	go w.writeLoop(readingDone)
+	go w.readLoop(writingDone)
+	go w.loopKeepAlive()
 
 	select { // wait either
 	case <-w.ctx.Done():
@@ -132,7 +95,52 @@ func (w *WSConnectionWrapper) Run() error {
 	return err
 }
 
+func (w *WSConnectionWrapper) init() error {
+	// write initial msg
+	w.initMsg.MessageId = uuid.New().String()
+	w.initMsg.Timestamp = time.Now()
+
+	return w.sendWS(w.initMsg, true)
+}
+
+func (w *WSConnectionWrapper) writeLoop(readingDone chan struct{}) {
+	// write loop
+	if w.isConnTest {
+		log.Debugf("Not trying to send data due to validation loop")
+		return
+	}
+
+	log.Debugf("Starting tcp->ws transfer")
+	n, err := io.Copy(w, w.tcpConn)
+	log.Infof("Done tcp->ws transfer: %d bytes", n)
+	if err != nil && !isConnClosedErr(err) {
+		log.Warnf("Problems transfering tcp->ws: %s", err)
+	}
+	close(readingDone)
+}
+
+func (w *WSConnectionWrapper) readLoop(writingDone chan error) {
+	// read loop
+	var wr io.Writer
+	if w.isConnTest {
+		wr = &bytes.Buffer{}
+	} else {
+		wr = w.tcpConn
+	}
+	n, err := io.Copy(wr, w)
+	log.Infof("Done ws->tcp transfer: %d bytes", n)
+	if err != nil && !isConnClosedErr(err) {
+		log.Warnf("Problems in ws->tcp transfer: %s", err)
+		writingDone <- err
+	}
+	close(writingDone)
+}
+
 func (w *WSConnectionWrapper) loopKeepAlive() {
+	if !w.isConnTest {
+		return // no keepalive for conn test
+	}
+
 	ticker := time.NewTicker(5 * time.Second) // TODO: parameterize it?
 	defer ticker.Stop()
 
@@ -178,24 +186,25 @@ func (w *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error {
 
 	if needsAck {
 		ctx, cancel := context.WithTimeout(w.ctx, w.timeout) // TODO: save cancelfn, too?
-		w.timeoutCtx[msg.MessageId] = ctx
-
-		go func() {
-			defer cancel()
-			<-ctx.Done()
-			if _, found := w.timeoutCtx[msg.MessageId]; found {
-				if ctx.Err() != nil {
-					log.Warnf("Did not receive ack within timeout for message %s: %s", msg.MessageId, ctx.Err())
-					err := w.Stop()
-					if err != nil {
-						log.Warnf("Failed to stop session: %s", err)
-					}
-				}
-			}
-		}()
+		w.pendingAckMessages[msg.MessageId] = cancel
+		go w.expectAck(ctx, msg)
 	}
 
 	return nil
+}
+
+func (w *WSConnectionWrapper) expectAck(ctx context.Context, msg *SessionMessage) {
+	<-ctx.Done()
+	if cancel, found := w.pendingAckMessages[msg.MessageId]; found {
+		cancel()
+		if ctx.Err() != nil {
+			log.Warnf("Did not receive ack within timeout for message %s: %s", msg.MessageId, ctx.Err())
+			err := w.Stop()
+			if err != nil {
+				log.Warnf("Failed to stop session: %s", err)
+			}
+		}
+	}
 }
 
 func (w *WSConnectionWrapper) connectWS(url string, hdr http.Header) (*websocket.Conn, error) {
@@ -238,9 +247,9 @@ func (w *WSConnectionWrapper) Read(b []byte) (int, error) {
 
 		if n == 0 {
 			// wait for the next chunk to arrive
-			err2 := w.readWS()
-			if err2 != nil {
-				err = err2
+			readWSErr := w.readWS()
+			if readWSErr != nil {
+				err = readWSErr
 			} // othwerwise err=EOF
 		}
 	}
@@ -273,44 +282,57 @@ func (w *WSConnectionWrapper) readWS() error {
 		close(w.chReady) // ready to write data into WS
 	}
 
+	return w.handleMsg(&msg)
+}
+
+func (w *WSConnectionWrapper) handleMsg(msg *SessionMessage) error {
 	switch msg.MessageType {
 	case MTStdout:
-		payload, err := base64.StdEncoding.DecodeString(msg.Data.(*WSStdoutData).Out)
-		if err != nil {
-			err := w.sendWS(w.newSessMessage(MTError, &WSErrorData{
-				OriginalMessageID: msg.MessageId,
-				ErrorMessage:      fmt.Sprintf("Failed to decode Base64: %s", err),
-			}), false)
-			if err != nil {
-				log.Debugf("Failed to send WS err: %s", err)
-			}
-		} else {
-			w.readBuf.Write(payload)
-		}
+		w.receiveOutput(msg)
 	case MTAck:
-		if w.isConnTest {
-			err = io.EOF // enough for connection test
-		}
-
-		acked := msg.Data.(*WSAckData).AckedMessageID
-
-		if _, ok := w.timeoutCtx[acked]; ok {
-			delete(w.timeoutCtx, acked)
-		} else {
-			log.Warnf("Received ack for unexpected message ID: %s", acked)
-		}
-
+		return w.handleMsgAck(msg)
 	case MTError:
-		err = fmt.Errorf("received error from remote: %s", msg.Data.(*WSErrorData).ErrorMessage)
+		return fmt.Errorf("received error from remote: %s", msg.Data.(*WSErrorData).ErrorMessage)
 	case MTTermination:
 		log.Infof("Got termination message, gotta shutdown")
 		w.graceful = true
-		err = io.EOF
+		return io.EOF
 	default:
 		log.Warnf("Unhandled WS message: %s", msg)
 	}
+	return nil
+}
 
+func (w *WSConnectionWrapper) handleMsgAck(msg *SessionMessage) error {
+	var err error
+	if w.isConnTest {
+		err = io.EOF // enough for connection test
+	}
+
+	acked := msg.Data.(*WSAckData).AckedMessageID
+
+	if _, ok := w.pendingAckMessages[acked]; ok {
+		delete(w.pendingAckMessages, acked)
+	} else {
+		log.Warnf("Received ack for unexpected message ID: %s", acked)
+	}
 	return err
+}
+
+func (w *WSConnectionWrapper) receiveOutput(msg *SessionMessage) {
+	payload, err := base64.StdEncoding.DecodeString(msg.Data.(*WSStdoutData).Out)
+	if err != nil {
+		log.Debugf("Failed to decode Base64: %s", err)
+		err := w.sendWS(w.newSessMessage(MTError, &WSErrorData{
+			OriginalMessageID: msg.MessageId,
+			ErrorMessage:      fmt.Sprintf("Failed to decode Base64: %s", err),
+		}), false)
+		if err != nil {
+			log.Debugf("Failed to send WS err: %s", err)
+		}
+	} else {
+		w.readBuf.Write(payload)
+	}
 }
 
 func (w *WSConnectionWrapper) Stop() error {
@@ -366,8 +388,8 @@ func NewWSConnectionWrapper(ctx context.Context, conn net.Conn, agentId string, 
 
 		chReady: make(chan struct{}),
 
-		timeout:    timeout,
-		timeoutCtx: map[string]context.Context{},
+		timeout:            timeout,
+		pendingAckMessages: map[string]context.CancelFunc{},
 	}
 }
 

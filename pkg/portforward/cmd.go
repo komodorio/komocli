@@ -15,9 +15,10 @@ const flagTimeout = "timeout"
 
 var Command = &cobra.Command{
 	// komocli port-forward <agentId> <namespace/pod:port> [local-port]
-	Use:   "port-forward",
-	Short: "Starts port forwarding client process",
-	Args:  cobra.RangeArgs(2, 3),
+	Use:     "port-forward",
+	Short:   "Starts port forwarding client process",
+	Example: "komocli port-forward <agentId> <namespace/pod:port> [local-port]",
+	Args:    cobra.RangeArgs(2, 3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		jwt, err := cmd.Flags().GetString(flagJWT)
 		if err != nil {
@@ -73,8 +74,8 @@ func run(ctx context.Context, agent string, remote string, local string, jwt str
 		jwt = os.Getenv("KOMOCLI_JWT")
 	}
 
-	f := NewController(rSpec, lport, jwt, timeout)
-	err = f.Run(ctx)
+	ctl := NewController(rSpec, lport, jwt, timeout)
+	err = ctl.Run(ctx)
 	if err != nil {
 		return fmt.Errorf("error while trying to forward port: %w", err)
 	}
