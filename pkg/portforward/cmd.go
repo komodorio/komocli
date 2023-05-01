@@ -35,8 +35,12 @@ var Command = &cobra.Command{
 }
 
 func init() {
-	Command.Flags().String(flagJWT, "", "JWT Authentication token")
 	Command.Flags().Duration(flagTimeout, 5*time.Second, "Timeout for operations")
+	Command.Flags().String(flagJWT, "", "JWT Authentication token")
+	err := Command.MarkFlagRequired(flagJWT)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func run(ctx context.Context, agent string, remote string, local string, jwt string, timeout time.Duration) error {
