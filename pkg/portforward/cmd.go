@@ -50,13 +50,13 @@ func run(ctx context.Context, agent string, remote string, local string, jwt str
 
 	parts := strings.Split(remote, "/")
 	if len(parts) != 2 {
-		return fmt.Errorf("invalid format for remote namespace/podName:port")
+		return fmt.Errorf("invalid format for remote namespace/podName:port, missing '/'")
 	}
 	rSpec.Namespace = parts[0]
 
 	parts = strings.Split(parts[1], ":")
 	if len(parts) != 2 {
-		return fmt.Errorf("invalid format for remote namespace/pod:port")
+		return fmt.Errorf("invalid format for remote namespace/pod:port, missing ':'")
 	}
 	rSpec.PodName = parts[0]
 
@@ -70,7 +70,7 @@ func run(ctx context.Context, agent string, remote string, local string, jwt str
 	if local != "" {
 		lport, err = strconv.Atoi(local)
 		if err != nil {
-			return fmt.Errorf("failed to parse local port")
+			return fmt.Errorf("failed to parse local port: %s", err)
 		}
 	}
 

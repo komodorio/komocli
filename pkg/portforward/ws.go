@@ -222,12 +222,12 @@ func (w *WSConnectionWrapper) connectWS(url string, hdr http.Header) (*websocket
 	return conn, nil
 }
 
-func (w *WSConnectionWrapper) Write(p []byte) (n int, err error) {
+func (w *WSConnectionWrapper) Write(b []byte) (n int, err error) {
 	<-w.chReady // we need to wait for ack before writing anything
 
 	// we received data via TCP and now want to translate it into WS message
 	msg := w.newSessMessage(MTStdin, &WSStdinData{
-		Input: base64.StdEncoding.EncodeToString(p),
+		Input: base64.StdEncoding.EncodeToString(b),
 	})
 
 	err = w.sendWS(msg, true)
@@ -236,7 +236,7 @@ func (w *WSConnectionWrapper) Write(p []byte) (n int, err error) {
 	}
 
 	// loop bridged messages
-	return len(p), err
+	return len(b), err
 }
 
 func (w *WSConnectionWrapper) Read(b []byte) (int, error) {
@@ -279,7 +279,8 @@ func (w *WSConnectionWrapper) readWS() error {
 		return err
 	}
 
-	if msg.MessageType == MTAck && msg.Data.(*WSAckData).AckedMessageID == w.initMsg.MessageId {
+	isInitAck := msg.MessageType == MTAck && msg.Data.(*WSAckData).AckedMessageID == w.initMsg.MessageId
+	if isInitAck {
 		w.SessionId = msg.SessionId
 		close(w.chReady) // ready to write data into WS
 	}
