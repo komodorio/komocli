@@ -30,7 +30,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           version: latest
-          args: release --snapshot --rm-dist
+          args: release --snapshot --clean
       - name: Test Binary is Runnable
         run: "dist/komocli_linux_amd64_v1/komocli --help"
       - name: golangci-lint
