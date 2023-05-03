@@ -187,7 +187,7 @@ func (ws *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error 
 	}
 
 	if needsAck {
-		ctx, cancel := context.WithTimeout(ws.ctx, ws.timeout) // TODO: save cancelfn, too?
+		ctx, cancel := context.WithTimeout(ws.ctx, ws.timeout)
 		ws.pendingAckMessages[msg.MessageId] = cancel
 		go ws.expectAck(ctx, msg)
 	}
@@ -195,8 +195,8 @@ func (ws *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error 
 	return nil
 }
 
-func (ws *WSConnectionWrapper) expectAck(ctx context.Context, msg *SessionMessage) {
-	<-ctx.Done()
+func (ws *WSConnectionWrapper) expectAck(ctx context.Context, msg *SessionMessage) error {
+	<-ctx.Done() // wait for ctx to potentially expire
 	if cancel, found := ws.pendingAckMessages[msg.MessageId]; found {
 		cancel()
 		if ctx.Err() != nil {
@@ -205,8 +205,10 @@ func (ws *WSConnectionWrapper) expectAck(ctx context.Context, msg *SessionMessag
 			if err != nil {
 				log.Warnf("Failed to stop session: %s", err)
 			}
+			return ctx.Err()
 		}
 	}
+	return nil
 }
 
 func (ws *WSConnectionWrapper) connectWS(url string, hdr http.Header) (*websocket.Conn, error) {
