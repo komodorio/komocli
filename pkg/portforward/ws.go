@@ -37,6 +37,7 @@ type WSConnectionWrapper struct {
 	readBuf            bytes.Buffer
 	timeout            time.Duration
 	pendingAckMessages map[string]context.CancelFunc
+	ackTimeoutErr      error
 }
 
 func (ws *WSConnectionWrapper) Run() error {
@@ -90,8 +91,13 @@ func (ws *WSConnectionWrapper) Run() error {
 	}
 
 	e := ws.Stop()
-	if err == nil { // don't mask previous error
-		err = e
+	if err == nil { // we don't mask previous error
+		// if we had some timeouts - report that
+		if ws.ackTimeoutErr != nil {
+			err = ws.ackTimeoutErr
+		} else {
+			err = e
+		}
 	}
 
 	return err
@@ -195,7 +201,7 @@ func (ws *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error 
 	return nil
 }
 
-func (ws *WSConnectionWrapper) expectAck(ctx context.Context, msg *SessionMessage) error {
+func (ws *WSConnectionWrapper) expectAck(ctx context.Context, msg *SessionMessage) {
 	<-ctx.Done() // wait for ctx to potentially expire
 	if cancel, found := ws.pendingAckMessages[msg.MessageId]; found {
 		cancel()
@@ -205,10 +211,9 @@ func (ws *WSConnectionWrapper) expectAck(ctx context.Context, msg *SessionMessag
 			if err != nil {
 				log.Warnf("Failed to stop session: %s", err)
 			}
-			return ctx.Err()
+			ws.ackTimeoutErr = ctx.Err()
 		}
 	}
-	return nil
 }
 
 func (ws *WSConnectionWrapper) connectWS(url string, hdr http.Header) (*websocket.Conn, error) {
@@ -353,7 +358,6 @@ func (ws *WSConnectionWrapper) Stop() error {
 	}
 	ws.closed = true
 
-	log.Infof("Closing forwarded connection: %v", ws.tcpConn)
 	err := ws.sendWS(ws.newSessMessage(MTTermination, &WSSessionTerminationData{
 		ProcessExitCode: 0,
 		ExitMessage:     "Stopping",
@@ -364,6 +368,7 @@ func (ws *WSConnectionWrapper) Stop() error {
 	}
 
 	if !ws.isConnTest {
+		log.Infof("Closing forwarded connection: %v", ws.tcpConn)
 		err = ws.tcpConn.Close()
 		if err != nil {
 			log.Debugf("Failed to close connection: %s", err)
