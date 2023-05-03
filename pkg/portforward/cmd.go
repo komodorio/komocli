@@ -1,17 +1,22 @@
 package portforward
 
 import (
+	"context"
 	"fmt"
-	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pkg/browser"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 const flagJWT = "jwt"
 const flagTimeout = "timeout"
+const flagBrowser = "browser"
+const flagAddress = "address"
 
 var Command = &cobra.Command{
 	// komocli port-forward <agentId> <namespace/pod:port> [local-port]
@@ -30,20 +35,37 @@ var Command = &cobra.Command{
 			return err
 		}
 
-		return run(cmd.Context(), args[0], args[1], args[2], jwt, timeout)
+		browser, err := cmd.Flags().GetBool(flagBrowser)
+		if err != nil {
+			return err
+		}
+
+		address, err := cmd.Flags().GetString(flagAddress)
+		if err != nil {
+			return err
+		}
+
+		localPort := ""
+		if len(args) > 2 {
+			localPort = args[2]
+		}
+
+		return run(cmd.Context(), args[0], args[1], localPort, jwt, timeout, browser, address)
 	},
 }
 
 func init() {
 	Command.Flags().Duration(flagTimeout, 5*time.Second, "Timeout for operations")
 	Command.Flags().String(flagJWT, "", "JWT Authentication token")
+	Command.Flags().String(flagAddress, "localhost", "Network address to listen on (aka 'bind address')")
+	Command.Flags().Bool(flagBrowser, false, "Open forwarded address automatically in browser")
 	err := Command.MarkFlagRequired(flagJWT)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func run(ctx context.Context, agent string, remote string, local string, jwt string, timeout time.Duration) error {
+func run(ctx context.Context, agent string, remote string, local string, jwt string, timeout time.Duration, browserOpen bool, address string) error {
 	rSpec := RemoteSpec{
 		AgentId: agent,
 	}
@@ -78,8 +100,21 @@ func run(ctx context.Context, agent string, remote string, local string, jwt str
 		jwt = os.Getenv("KOMOCLI_JWT")
 	}
 
-	ctl := NewController(rSpec, lport, jwt, timeout)
-	err = ctl.Run(ctx)
+	ctl := NewController(rSpec, address, lport, jwt, timeout)
+
+	afterInit := func() {
+		if browserOpen {
+			time.Sleep(250 * time.Millisecond)
+			url := fmt.Sprintf("http://%s:%d", address, lport) // https would not work well anyway
+			log.Infof("Opening in browser: %s", url)
+			err := browser.OpenURL(url)
+			if err != nil {
+				log.Warnf("Failed to open Web browser: %s", err)
+			}
+		}
+	}
+
+	err = ctl.Run(ctx, afterInit)
 	if err != nil {
 		return fmt.Errorf("error while trying to forward port: %w", err)
 	}

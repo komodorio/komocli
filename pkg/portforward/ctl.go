@@ -5,19 +5,19 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net"
-	"os"
 	"sync"
 	"time"
 )
 
 type Controller struct {
 	RemoteSpec RemoteSpec
+	Address    string
 	LocalPort  int
 	Token      string
 	timeout    time.Duration
 }
 
-func (c *Controller) Run(ctx context.Context) error {
+func (c *Controller) Run(ctx context.Context, afterInit func()) error {
 	// template message for session starts
 	initMsg := &SessionMessage{
 		MessageType: MTPortForwardInit,
@@ -35,14 +35,12 @@ func (c *Controller) Run(ctx context.Context) error {
 	log.Infof("Finished testing the connectivity, ready to accept connections")
 
 	// check and bind local port, mind the host
-	host := os.Getenv("KOMOCLI_BIND")
-	if host == "" {
-		host = "localhost"
-	}
-	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, c.LocalPort))
+	listen, err := net.Listen("tcp", fmt.Sprintf("%s:%d", c.Address, c.LocalPort)) // TODO: what if we have random port?
 	if err != nil {
 		return err
 	}
+	log.Infof("Started listening for incoming connections: %s", listen.Addr())
+	afterInit()
 
 	go func() {
 		<-ctx.Done()
@@ -116,9 +114,10 @@ func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listene
 	wg.Wait()
 }
 
-func NewController(rSpec RemoteSpec, lport int, jwt string, timeout time.Duration) *Controller {
+func NewController(rSpec RemoteSpec, address string, lport int, jwt string, timeout time.Duration) *Controller {
 	return &Controller{
 		RemoteSpec: rSpec,
+		Address:    address,
 		LocalPort:  lport,
 		Token:      jwt,
 		timeout:    timeout,
