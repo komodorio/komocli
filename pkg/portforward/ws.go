@@ -37,6 +37,7 @@ type WSConnectionWrapper struct {
 	readBuf            bytes.Buffer
 	timeout            time.Duration
 	pendingAckMessages map[string]context.CancelFunc
+	ackTimeoutErr      error
 }
 
 func (ws *WSConnectionWrapper) Run() error {
@@ -90,8 +91,13 @@ func (ws *WSConnectionWrapper) Run() error {
 	}
 
 	e := ws.Stop()
-	if err == nil { // don't mask previous error
-		err = e
+	if err == nil { // we don't mask previous error
+		// if we had some timeouts - report that
+		if ws.ackTimeoutErr != nil {
+			err = ws.ackTimeoutErr
+		} else {
+			err = e
+		}
 	}
 
 	return err
@@ -187,7 +193,7 @@ func (ws *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error 
 	}
 
 	if needsAck {
-		ctx, cancel := context.WithTimeout(ws.ctx, ws.timeout) // TODO: save cancelfn, too?
+		ctx, cancel := context.WithTimeout(ws.ctx, ws.timeout)
 		ws.pendingAckMessages[msg.MessageId] = cancel
 		go ws.expectAck(ctx, msg)
 	}
@@ -196,7 +202,7 @@ func (ws *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error 
 }
 
 func (ws *WSConnectionWrapper) expectAck(ctx context.Context, msg *SessionMessage) {
-	<-ctx.Done()
+	<-ctx.Done() // wait for ctx to potentially expire
 	if cancel, found := ws.pendingAckMessages[msg.MessageId]; found {
 		cancel()
 		if ctx.Err() != nil {
@@ -205,6 +211,7 @@ func (ws *WSConnectionWrapper) expectAck(ctx context.Context, msg *SessionMessag
 			if err != nil {
 				log.Warnf("Failed to stop session: %s", err)
 			}
+			ws.ackTimeoutErr = ctx.Err()
 		}
 	}
 }
@@ -351,7 +358,6 @@ func (ws *WSConnectionWrapper) Stop() error {
 	}
 	ws.closed = true
 
-	log.Infof("Closing forwarded connection: %v", ws.tcpConn)
 	err := ws.sendWS(ws.newSessMessage(MTTermination, &WSSessionTerminationData{
 		ProcessExitCode: 0,
 		ExitMessage:     "Stopping",
@@ -362,6 +368,7 @@ func (ws *WSConnectionWrapper) Stop() error {
 	}
 
 	if !ws.isConnTest {
+		log.Infof("Closing forwarded connection: %v", ws.tcpConn)
 		err = ws.tcpConn.Close()
 		if err != nil {
 			log.Debugf("Failed to close connection: %s", err)

@@ -13,10 +13,11 @@ komocli port-forward d14846d5-211f-466a-8b1e-c823a2270a99 default/helm-dashboard
 
 JWT token can be specified via env variable `KOMOCLI_JWT`
 `KOMOCLI_WS_URL` is the base URL for env, defaults to `wss://app.komodor.com`, `KOMOCLI_DEV` flag would make it use query string param for JWT instead of cookie.
-`KOMOCLI_BIND` sets the bind address for forwarder
+`--address` sets the bind address for forwarder
 
 # Roadmap, Ideas, TODOs
 
+- add unit-tests
 - have nicer CLI param for port forward, more kubectl-like
 - make sure --help is meaningful
 - support service as PF specification
@@ -25,3 +26,4 @@ JWT token can be specified via env variable `KOMOCLI_JWT`
 - test when agent shuts down mid-session
 - test when container shuts down mid-session
 - test when CLI shuts down mid-session
+- deal with `0` as local port leading to random port
