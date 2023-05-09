@@ -7,8 +7,7 @@ You need to know agent ID, provide valid JWT token and specify target names for 
 
 Example:
 ```shell
-# komocli port-forward <agentId> <namespace>/<podName>:podPort localPort
-komocli port-forward d14846d5-211f-466a-8b1e-c823a2270a99 default/helm-dashboard-86f46bdd56-kvgj7:8080 9090 --jwt=eyJh...jAw
+ komocli port-forward pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=...
 ```
 
 JWT token can be specified via env variable `KOMOCLI_JWT`
