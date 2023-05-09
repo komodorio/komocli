@@ -90,6 +90,7 @@ func (o *CmdParams) Run(ctx context.Context) (err error) {
 
 	rSpec.Namespace = o.Namespace
 	rSpec.PodName = o.ResourceName
+	rSpec.RemotePort = o.RemotePort
 
 	ctl := NewController(rSpec, o.Address, o.LocalPort, o.Token, o.Timeout)
 
