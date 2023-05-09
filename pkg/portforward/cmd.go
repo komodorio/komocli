@@ -94,15 +94,9 @@ func (o *CmdParams) Run(ctx context.Context) (err error) {
 
 	ctl := NewController(rSpec, o.Address, o.LocalPort, o.Token, o.Timeout)
 
-	afterInit := func() {
-		if o.OpenBrowser {
-			url := fmt.Sprintf("http://%s:%d", o.Address, o.LocalPort) // https would not work well anyway
-			log.Infof("Opening in browser: %s", url)
-			err := browser.OpenURL(url)
-			if err != nil {
-				log.Warnf("Failed to open Web browser: %s", err)
-			}
-		}
+	afterInit := func(addr string) {}
+	if o.OpenBrowser {
+		afterInit = openBrowser
 	}
 
 	err = ctl.Run(ctx, afterInit)
@@ -111,6 +105,15 @@ func (o *CmdParams) Run(ctx context.Context) (err error) {
 	}
 
 	return nil
+}
+
+func openBrowser(addr string) {
+	url := fmt.Sprintf("http://%s", addr) // https would not work well anyway
+	log.Infof("Opening in browser: %s", url)
+	err := browser.OpenURL(url)
+	if err != nil {
+		log.Warnf("Failed to open Web browser: %s", err)
+	}
 }
 
 func NewCommand() *cobra.Command {

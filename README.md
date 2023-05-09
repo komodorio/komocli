@@ -17,14 +17,9 @@ JWT token can be specified via env variable `KOMOCLI_JWT`
 
 # Roadmap, Ideas, TODOs
 
-- support service as PF specification
-- deal with `0` as local port leading to random port
-
 - make sure --help is meaningful
 - test when wrong agent ID
 - test when agent is down
 - test when agent shuts down mid-session
 - test when container shuts down mid-session
 - test when CLI shuts down mid-session
-
-- add unit-tests
