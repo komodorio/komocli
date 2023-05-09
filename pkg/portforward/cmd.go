@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const flagJWT = "jwt"
+const flagToken = "token"
 const flagTimeout = "timeout"
 const flagBrowser = "browser"
 const flagAddress = "address"
@@ -46,7 +46,7 @@ func (o *CmdParams) AcceptArgs(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	flags := cmd.Flags()
-	o.Token, err = flags.GetString(flagJWT)
+	o.Token, err = flags.GetString(flagToken)
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func NewCommand() *cobra.Command {
 
 func setupFlags(cmd *cobra.Command) {
 	cmd.Flags().Duration(flagTimeout, 5*time.Second, "Timeout for operations")
-	cmd.Flags().String(flagJWT, "", "JWT Authentication token")
+	cmd.Flags().String(flagToken, "", "JWT Authentication token")
 	cmd.Flags().String(flagAddress, "localhost", "Network address to listen on (aka 'bind address')")
 	cmd.Flags().Bool(flagBrowser, false, "Open forwarded address automatically in browser")
 	cmd.Flags().String(flagNamespace, "default", "Namespace for the resource")
@@ -149,7 +149,7 @@ func setupFlags(cmd *cobra.Command) {
 }
 
 func validateFlags(cmd *cobra.Command) error {
-	err := cmd.MarkFlagRequired(flagJWT)
+	err := cmd.MarkFlagRequired(flagToken)
 	if err != nil {
 		return err
 	}

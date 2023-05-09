@@ -104,6 +104,8 @@ func (ws *WSConnectionWrapper) Run() error {
 }
 
 func (ws *WSConnectionWrapper) init() error {
+	log.Infof("Initializing session...")
+
 	// write initial msg
 	ws.initMsg.MessageId = uuid.New().String()
 	ws.initMsg.Timestamp = time.Now()
@@ -145,7 +147,7 @@ func (ws *WSConnectionWrapper) readLoop(writingDone chan error) {
 }
 
 func (ws *WSConnectionWrapper) loopKeepAlive() {
-	if !ws.isConnTest {
+	if ws.isConnTest {
 		return // no keepalive for conn test
 	}
 
