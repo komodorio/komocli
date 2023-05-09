@@ -12,6 +12,8 @@ import (
 	"github.com/pkg/browser"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/kubectl/pkg/util/i18n"
+	"k8s.io/kubectl/pkg/util/templates"
 )
 
 const flagToken = "token"
@@ -20,6 +22,31 @@ const flagBrowser = "browser"
 const flagAddress = "address"
 const flagNamespace = "namespace"
 const flagCluster = "cluster"
+
+var (
+	portforwardLong = templates.LongDesc(i18n.T(`
+		Forward local port to a pod.
+
+		Use resource type/name such as deployment/mydeployment to select a pod. Resource type defaults to 'pod' if omitted.
+
+		If there are multiple pods matching the criteria, a pod will be selected automatically.`))
+
+	portforwardExample = templates.Examples(i18n.T(`
+		# Listen on port 5000 locally, forwarding data to/from port 5000 in the pod
+		komocli port-forward pod/mypod 5000 --namespace default --cluster my-cluster --token=...
+
+		# Listen on port 5000 locally, forwarding data to/from port 5000 in a pod selected by the deployment
+		komocli port-forward deployment/mydeployment 5000 --namespace default --cluster my-cluster --token=...
+
+		# Listen on port 8888 locally, forwarding to 5000 in the pod
+		komocli port-forward pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=...
+
+		# Listen on port 8888 on all addresses, forwarding to 5000 in the pod
+		komocli port-forward --address 0.0.0.0 pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=...
+
+		# Listen on a random port locally, forwarding to 5000 in the pod
+		komocli port-forward pod/mypod :5000 --namespace default --cluster my-cluster --token=...`))
+)
 
 type CmdParams struct {
 	Namespace    string
@@ -120,8 +147,9 @@ func NewCommand() *cobra.Command {
 	var cmd = &cobra.Command{
 		// komocli port-forward <agentId> <namespace/pod:port> [local-port]
 		Use:     "port-forward",
-		Short:   "Starts port forwarding client process",
-		Example: "komocli port-forward <agentId> <namespace/pod:port> [local-port]",
+		Short:   i18n.T("Forward local port to a pod"),
+		Long:    portforwardLong,
+		Example: portforwardExample,
 		Args:    cobra.ExactArgs(2),
 		RunE: func(c *cobra.Command, args []string) error {
 			opts := CmdParams{}
