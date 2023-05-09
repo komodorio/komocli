@@ -68,5 +68,9 @@ func TestRun(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	_ = NewCommand()
+	cmd := NewCommand()
+	err := cmd.Execute()
+	if err != nil {
+		t.Logf("We expect it to show help and return error: %v", err)
+	}
 }

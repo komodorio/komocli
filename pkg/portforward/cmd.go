@@ -145,7 +145,6 @@ func openBrowser(addr string) {
 
 func NewCommand() *cobra.Command {
 	var cmd = &cobra.Command{
-		// komocli port-forward <agentId> <namespace/pod:port> [local-port]
 		Use:     "port-forward",
 		Short:   i18n.T("Forward local port to a pod"),
 		Long:    portforwardLong,
