@@ -2,6 +2,7 @@ package portforward
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -17,95 +18,84 @@ const flagJWT = "jwt"
 const flagTimeout = "timeout"
 const flagBrowser = "browser"
 const flagAddress = "address"
+const flagNamespace = "namespace"
+const flagCluster = "cluster"
 
-var Command = &cobra.Command{
-	// komocli port-forward <agentId> <namespace/pod:port> [local-port]
-	Use:     "port-forward",
-	Short:   "Starts port forwarding client process",
-	Example: "komocli port-forward <agentId> <namespace/pod:port> [local-port]",
-	Args:    cobra.RangeArgs(2, 3),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		jwt, err := cmd.Flags().GetString(flagJWT)
-		if err != nil {
-			return err
-		}
-
-		timeout, err := cmd.Flags().GetDuration(flagTimeout)
-		if err != nil {
-			return err
-		}
-
-		browser, err := cmd.Flags().GetBool(flagBrowser)
-		if err != nil {
-			return err
-		}
-
-		address, err := cmd.Flags().GetString(flagAddress)
-		if err != nil {
-			return err
-		}
-
-		localPort := ""
-		if len(args) > 2 {
-			localPort = args[2]
-		}
-
-		return run(cmd.Context(), args[0], args[1], localPort, jwt, timeout, browser, address)
-	},
+type CmdParams struct {
+	Namespace    string
+	Token        string
+	Timeout      time.Duration
+	OpenBrowser  bool
+	Address      string
+	Cluster      string
+	LocalPort    int
+	RemotePort   int
+	ResourceName string
 }
 
-func init() {
-	Command.Flags().Duration(flagTimeout, 5*time.Second, "Timeout for operations")
-	Command.Flags().String(flagJWT, "", "JWT Authentication token")
-	Command.Flags().String(flagAddress, "localhost", "Network address to listen on (aka 'bind address')")
-	Command.Flags().Bool(flagBrowser, false, "Open forwarded address automatically in browser")
-	err := Command.MarkFlagRequired(flagJWT)
-	if err != nil {
-		panic(err)
+func (o *CmdParams) AcceptArgs(cmd *cobra.Command, args []string) (err error) {
+	if len(args) != 2 {
+		return errors.New("exactly two arguments required for command")
 	}
+
+	o.ResourceName = args[0]
+
+	o.LocalPort, o.RemotePort, err = splitPort(args[1])
+	if err != nil {
+		return err
+	}
+
+	flags := cmd.Flags()
+	o.Token, err = flags.GetString(flagJWT)
+	if err != nil {
+		return err
+	}
+
+	if o.Token == "" {
+		o.Token = os.Getenv("KOMOCLI_JWT")
+	}
+
+	o.Timeout, err = flags.GetDuration(flagTimeout)
+	if err != nil {
+		return err
+	}
+
+	o.OpenBrowser, err = flags.GetBool(flagBrowser)
+	if err != nil {
+		return err
+	}
+
+	o.Address, err = flags.GetString(flagAddress)
+	if err != nil {
+		return err
+	}
+
+	o.Namespace, err = flags.GetString(flagNamespace)
+	if err != nil {
+		return err
+	}
+
+	o.Cluster, err = flags.GetString(flagCluster)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func run(ctx context.Context, agent string, remote string, local string, jwt string, timeout time.Duration, browserOpen bool, address string) error {
+func (o *CmdParams) Run(ctx context.Context) (err error) {
 	rSpec := RemoteSpec{
-		AgentId: agent,
+		AgentId: o.Cluster,
 	}
 
-	parts := strings.Split(remote, "/")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid format for remote namespace/podName:port, missing '/'")
-	}
-	rSpec.Namespace = parts[0]
+	rSpec.Namespace = o.Namespace
+	rSpec.PodName = o.ResourceName
 
-	parts = strings.Split(parts[1], ":")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid format for remote namespace/pod:port, missing ':'")
-	}
-	rSpec.PodName = parts[0]
-
-	var err error
-	rSpec.RemotePort, err = strconv.Atoi(parts[1])
-	if err != nil {
-		return fmt.Errorf("failed to parse remote port: %w", err)
-	}
-
-	lport := rSpec.RemotePort
-	if local != "" {
-		lport, err = strconv.Atoi(local)
-		if err != nil {
-			return fmt.Errorf("failed to parse local port: %s", err)
-		}
-	}
-
-	if jwt == "" {
-		jwt = os.Getenv("KOMOCLI_JWT")
-	}
-
-	ctl := NewController(rSpec, address, lport, jwt, timeout)
+	ctl := NewController(rSpec, o.Address, o.LocalPort, o.Token, o.Timeout)
 
 	afterInit := func() {
-		if browserOpen {
-			time.Sleep(250 * time.Millisecond)
-			url := fmt.Sprintf("http://%s:%d", address, lport) // https would not work well anyway
+		if o.OpenBrowser {
+			url := fmt.Sprintf("http://%s:%d", o.Address, o.LocalPort) // https would not work well anyway
 			log.Infof("Opening in browser: %s", url)
 			err := browser.OpenURL(url)
 			if err != nil {
@@ -120,4 +110,81 @@ func run(ctx context.Context, agent string, remote string, local string, jwt str
 	}
 
 	return nil
+}
+
+func NewCommand() *cobra.Command {
+	var cmd = &cobra.Command{
+		// komocli port-forward <agentId> <namespace/pod:port> [local-port]
+		Use:     "port-forward",
+		Short:   "Starts port forwarding client process",
+		Example: "komocli port-forward <agentId> <namespace/pod:port> [local-port]",
+		Args:    cobra.ExactArgs(2),
+		RunE: func(c *cobra.Command, args []string) error {
+			opts := CmdParams{}
+			err := opts.AcceptArgs(c, args)
+			if err != nil {
+				return err
+			}
+
+			return opts.Run(c.Context())
+		},
+	}
+
+	setupFlags(cmd)
+	err := validateFlags(cmd)
+	if err != nil {
+		panic(err)
+	}
+
+	return cmd
+}
+
+func setupFlags(cmd *cobra.Command) {
+	cmd.Flags().Duration(flagTimeout, 5*time.Second, "Timeout for operations")
+	cmd.Flags().String(flagJWT, "", "JWT Authentication token")
+	cmd.Flags().String(flagAddress, "localhost", "Network address to listen on (aka 'bind address')")
+	cmd.Flags().Bool(flagBrowser, false, "Open forwarded address automatically in browser")
+	cmd.Flags().String(flagNamespace, "default", "Namespace for the resource")
+	cmd.Flags().String(flagCluster, "", "Komodor cluster name that contains resource")
+}
+
+func validateFlags(cmd *cobra.Command) error {
+	err := cmd.MarkFlagRequired(flagJWT)
+	if err != nil {
+		return err
+	}
+
+	err = cmd.MarkFlagRequired(flagCluster)
+	if err != nil {
+		return err
+	}
+
+	err = cmd.MarkFlagRequired(flagNamespace)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func splitPort(port string) (local, remote int, err error) {
+	// logic copied from kubectl code portforward.go
+
+	parts := strings.Split(port, ":")
+	if parts[0] != "" {
+		local, err = strconv.Atoi(parts[0])
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
+	if len(parts) == 2 {
+		remote, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return 0, 0, err
+		}
+
+		return local, remote, nil
+	}
+
+	return local, local, nil
 }
