@@ -2,6 +2,7 @@ package portforward
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -11,107 +12,116 @@ import (
 	"github.com/pkg/browser"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/kubectl/pkg/util/templates"
 )
 
-const flagJWT = "jwt"
+const flagToken = "token"
 const flagTimeout = "timeout"
 const flagBrowser = "browser"
 const flagAddress = "address"
+const flagNamespace = "namespace"
+const flagCluster = "cluster"
 
-var Command = &cobra.Command{
-	// komocli port-forward <agentId> <namespace/pod:port> [local-port]
-	Use:     "port-forward",
-	Short:   "Starts port forwarding client process",
-	Example: "komocli port-forward <agentId> <namespace/pod:port> [local-port]",
-	Args:    cobra.RangeArgs(2, 3),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		jwt, err := cmd.Flags().GetString(flagJWT)
-		if err != nil {
-			return err
-		}
+var (
+	portforwardLong = templates.LongDesc(`
+		Forward local port to a pod.
 
-		timeout, err := cmd.Flags().GetDuration(flagTimeout)
-		if err != nil {
-			return err
-		}
+		Use resource type/name such as deployment/mydeployment to select a pod. Resource type defaults to 'pod' if omitted.
 
-		browser, err := cmd.Flags().GetBool(flagBrowser)
-		if err != nil {
-			return err
-		}
+		If there are multiple pods matching the criteria, a pod will be selected automatically.`)
 
-		address, err := cmd.Flags().GetString(flagAddress)
-		if err != nil {
-			return err
-		}
+	portforwardExample = templates.Examples(`
+		# Listen on port 5000 locally, forwarding data to/from port 5000 in the pod
+		komocli port-forward pod/mypod 5000 --namespace default --cluster my-cluster --token=...
 
-		localPort := ""
-		if len(args) > 2 {
-			localPort = args[2]
-		}
+		# Listen on port 5000 locally, forwarding data to/from port 5000 in a pod selected by the deployment
+		komocli port-forward deployment/mydeployment 5000 --namespace default --cluster my-cluster --token=...
 
-		return run(cmd.Context(), args[0], args[1], localPort, jwt, timeout, browser, address)
-	},
+		# Listen on port 8888 locally, forwarding to 5000 in the pod
+		komocli port-forward pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=...
+
+		# Listen on port 8888 on all addresses, forwarding to 5000 in the pod
+		komocli port-forward --address 0.0.0.0 pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=...
+
+		# Listen on a random port locally, forwarding to 5000 in the pod
+		komocli port-forward pod/mypod :5000 --namespace default --cluster my-cluster --token=...`)
+)
+
+type CmdParams struct {
+	Namespace    string
+	Token        string
+	Timeout      time.Duration
+	OpenBrowser  bool
+	Address      string
+	Cluster      string
+	LocalPort    int
+	RemotePort   int
+	ResourceName string
 }
 
-func init() {
-	Command.Flags().Duration(flagTimeout, 5*time.Second, "Timeout for operations")
-	Command.Flags().String(flagJWT, "", "JWT Authentication token")
-	Command.Flags().String(flagAddress, "localhost", "Network address to listen on (aka 'bind address')")
-	Command.Flags().Bool(flagBrowser, false, "Open forwarded address automatically in browser")
-	err := Command.MarkFlagRequired(flagJWT)
-	if err != nil {
-		panic(err)
+func (p *CmdParams) AcceptArgs(cmd *cobra.Command, args []string) (err error) {
+	if len(args) != 2 {
+		return errors.New("exactly two arguments required for command")
 	}
+
+	p.ResourceName = args[0]
+
+	p.LocalPort, p.RemotePort, err = splitPort(args[1])
+	if err != nil {
+		return err
+	}
+
+	flags := cmd.Flags()
+	p.Token, err = flags.GetString(flagToken)
+	if err != nil {
+		return err
+	}
+
+	if p.Token == "" {
+		p.Token = os.Getenv("KOMOCLI_JWT")
+	}
+
+	p.Timeout, err = flags.GetDuration(flagTimeout)
+	if err != nil {
+		return err
+	}
+
+	p.OpenBrowser, err = flags.GetBool(flagBrowser)
+	if err != nil {
+		return err
+	}
+
+	p.Address, err = flags.GetString(flagAddress)
+	if err != nil {
+		return err
+	}
+
+	p.Namespace, err = flags.GetString(flagNamespace)
+	if err != nil {
+		return err
+	}
+
+	p.Cluster, err = flags.GetString(flagCluster)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func run(ctx context.Context, agent string, remote string, local string, jwt string, timeout time.Duration, browserOpen bool, address string) error {
+func (p *CmdParams) Run(ctx context.Context) (err error) {
 	rSpec := RemoteSpec{
-		AgentId: agent,
+		AgentId:    p.Cluster,
+		Namespace:  p.Namespace,
+		PodName:    p.ResourceName,
+		RemotePort: p.RemotePort,
 	}
 
-	parts := strings.Split(remote, "/")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid format for remote namespace/podName:port, missing '/'")
-	}
-	rSpec.Namespace = parts[0]
+	ctl := NewController(rSpec, p.Address, p.LocalPort, p.Token, p.Timeout)
 
-	parts = strings.Split(parts[1], ":")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid format for remote namespace/pod:port, missing ':'")
-	}
-	rSpec.PodName = parts[0]
-
-	var err error
-	rSpec.RemotePort, err = strconv.Atoi(parts[1])
-	if err != nil {
-		return fmt.Errorf("failed to parse remote port: %w", err)
-	}
-
-	lport := rSpec.RemotePort
-	if local != "" {
-		lport, err = strconv.Atoi(local)
-		if err != nil {
-			return fmt.Errorf("failed to parse local port: %s", err)
-		}
-	}
-
-	if jwt == "" {
-		jwt = os.Getenv("KOMOCLI_JWT")
-	}
-
-	ctl := NewController(rSpec, address, lport, jwt, timeout)
-
-	afterInit := func() {
-		if browserOpen {
-			time.Sleep(250 * time.Millisecond)
-			url := fmt.Sprintf("http://%s:%d", address, lport) // https would not work well anyway
-			log.Infof("Opening in browser: %s", url)
-			err := browser.OpenURL(url)
-			if err != nil {
-				log.Warnf("Failed to open Web browser: %s", err)
-			}
-		}
+	afterInit := func(addr string) {}
+	if p.OpenBrowser {
+		afterInit = openBrowser
 	}
 
 	err = ctl.Run(ctx, afterInit)
@@ -120,4 +130,90 @@ func run(ctx context.Context, agent string, remote string, local string, jwt str
 	}
 
 	return nil
+}
+
+func openBrowser(addr string) {
+	url := fmt.Sprintf("http://%s", addr) // https would not work well anyway
+	log.Infof("Opening in browser: %s", url)
+	err := browser.OpenURL(url)
+	if err != nil {
+		log.Warnf("Failed to open Web browser: %s", err)
+	}
+}
+
+func NewCommand() *cobra.Command {
+	var cmd = &cobra.Command{
+		Use:     "port-forward",
+		Short:   "Forward local port to a pod",
+		Long:    portforwardLong,
+		Example: portforwardExample,
+		Args:    cobra.ExactArgs(2),
+		RunE: func(c *cobra.Command, args []string) error {
+			opts := CmdParams{}
+			err := opts.AcceptArgs(c, args)
+			if err != nil {
+				return err
+			}
+
+			return opts.Run(c.Context())
+		},
+	}
+
+	setupFlags(cmd)
+	err := validateFlags(cmd)
+	if err != nil {
+		panic(err)
+	}
+
+	return cmd
+}
+
+func setupFlags(cmd *cobra.Command) {
+	cmd.Flags().Duration(flagTimeout, 5*time.Second, "Timeout for operations")
+	cmd.Flags().String(flagToken, "", "JWT Authentication token")
+	cmd.Flags().String(flagAddress, "localhost", "Network address to listen on (aka 'bind address')")
+	cmd.Flags().Bool(flagBrowser, false, "Open forwarded address automatically in browser")
+	cmd.Flags().String(flagNamespace, "default", "Namespace for the resource")
+	cmd.Flags().String(flagCluster, "", "Komodor cluster name that contains resource")
+}
+
+func validateFlags(cmd *cobra.Command) error {
+	err := cmd.MarkFlagRequired(flagToken)
+	if err != nil {
+		return err
+	}
+
+	err = cmd.MarkFlagRequired(flagCluster)
+	if err != nil {
+		return err
+	}
+
+	err = cmd.MarkFlagRequired(flagNamespace)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func splitPort(port string) (local, remote int, err error) {
+	// logic copied from kubectl code portforward.go
+
+	parts := strings.Split(port, ":")
+	if parts[0] != "" {
+		local, err = strconv.Atoi(parts[0])
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
+	if len(parts) == 2 {
+		remote, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return 0, 0, err
+		}
+
+		return local, remote, nil
+	}
+
+	return local, local, nil
 }

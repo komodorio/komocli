@@ -17,7 +17,7 @@ type Controller struct {
 	timeout    time.Duration
 }
 
-func (c *Controller) Run(ctx context.Context, afterInit func()) error {
+func (c *Controller) Run(ctx context.Context, afterInit func(addr string)) error {
 	// template message for session starts
 	initMsg := &SessionMessage{
 		MessageType: MTPortForwardInit,
@@ -40,7 +40,7 @@ func (c *Controller) Run(ctx context.Context, afterInit func()) error {
 		return err
 	}
 	log.Infof("Started listening for incoming connections: %s", listen.Addr())
-	afterInit()
+	afterInit(listen.Addr().String())
 
 	go func() {
 		<-ctx.Done()
