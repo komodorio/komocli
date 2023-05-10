@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/browser"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
 
@@ -24,14 +23,14 @@ const flagNamespace = "namespace"
 const flagCluster = "cluster"
 
 var (
-	portforwardLong = templates.LongDesc(i18n.T(`
+	portforwardLong = templates.LongDesc(`
 		Forward local port to a pod.
 
 		Use resource type/name such as deployment/mydeployment to select a pod. Resource type defaults to 'pod' if omitted.
 
-		If there are multiple pods matching the criteria, a pod will be selected automatically.`))
+		If there are multiple pods matching the criteria, a pod will be selected automatically.`)
 
-	portforwardExample = templates.Examples(i18n.T(`
+	portforwardExample = templates.Examples(`
 		# Listen on port 5000 locally, forwarding data to/from port 5000 in the pod
 		komocli port-forward pod/mypod 5000 --namespace default --cluster my-cluster --token=...
 
@@ -45,7 +44,7 @@ var (
 		komocli port-forward --address 0.0.0.0 pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=...
 
 		# Listen on a random port locally, forwarding to 5000 in the pod
-		komocli port-forward pod/mypod :5000 --namespace default --cluster my-cluster --token=...`))
+		komocli port-forward pod/mypod :5000 --namespace default --cluster my-cluster --token=...`)
 )
 
 type CmdParams struct {
@@ -60,49 +59,49 @@ type CmdParams struct {
 	ResourceName string
 }
 
-func (o *CmdParams) AcceptArgs(cmd *cobra.Command, args []string) (err error) {
+func (p *CmdParams) AcceptArgs(cmd *cobra.Command, args []string) (err error) {
 	if len(args) != 2 {
 		return errors.New("exactly two arguments required for command")
 	}
 
-	o.ResourceName = args[0]
+	p.ResourceName = args[0]
 
-	o.LocalPort, o.RemotePort, err = splitPort(args[1])
+	p.LocalPort, p.RemotePort, err = splitPort(args[1])
 	if err != nil {
 		return err
 	}
 
 	flags := cmd.Flags()
-	o.Token, err = flags.GetString(flagToken)
+	p.Token, err = flags.GetString(flagToken)
 	if err != nil {
 		return err
 	}
 
-	if o.Token == "" {
-		o.Token = os.Getenv("KOMOCLI_JWT")
+	if p.Token == "" {
+		p.Token = os.Getenv("KOMOCLI_JWT")
 	}
 
-	o.Timeout, err = flags.GetDuration(flagTimeout)
+	p.Timeout, err = flags.GetDuration(flagTimeout)
 	if err != nil {
 		return err
 	}
 
-	o.OpenBrowser, err = flags.GetBool(flagBrowser)
+	p.OpenBrowser, err = flags.GetBool(flagBrowser)
 	if err != nil {
 		return err
 	}
 
-	o.Address, err = flags.GetString(flagAddress)
+	p.Address, err = flags.GetString(flagAddress)
 	if err != nil {
 		return err
 	}
 
-	o.Namespace, err = flags.GetString(flagNamespace)
+	p.Namespace, err = flags.GetString(flagNamespace)
 	if err != nil {
 		return err
 	}
 
-	o.Cluster, err = flags.GetString(flagCluster)
+	p.Cluster, err = flags.GetString(flagCluster)
 	if err != nil {
 		return err
 	}
@@ -110,19 +109,18 @@ func (o *CmdParams) AcceptArgs(cmd *cobra.Command, args []string) (err error) {
 	return nil
 }
 
-func (o *CmdParams) Run(ctx context.Context) (err error) {
+func (p *CmdParams) Run(ctx context.Context) (err error) {
 	rSpec := RemoteSpec{
-		AgentId: o.Cluster,
+		AgentId:    p.Cluster,
+		Namespace:  p.Namespace,
+		PodName:    p.ResourceName,
+		RemotePort: p.RemotePort,
 	}
 
-	rSpec.Namespace = o.Namespace
-	rSpec.PodName = o.ResourceName
-	rSpec.RemotePort = o.RemotePort
-
-	ctl := NewController(rSpec, o.Address, o.LocalPort, o.Token, o.Timeout)
+	ctl := NewController(rSpec, p.Address, p.LocalPort, p.Token, p.Timeout)
 
 	afterInit := func(addr string) {}
-	if o.OpenBrowser {
+	if p.OpenBrowser {
 		afterInit = openBrowser
 	}
 
@@ -146,7 +144,7 @@ func openBrowser(addr string) {
 func NewCommand() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:     "port-forward",
-		Short:   i18n.T("Forward local port to a pod"),
+		Short:   "Forward local port to a pod",
 		Long:    portforwardLong,
 		Example: portforwardExample,
 		Args:    cobra.ExactArgs(2),
