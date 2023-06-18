@@ -18,7 +18,7 @@ builds:
       - CGO_ENABLED=0
 archives:
   - id: komocli
-    format: tar.gz
+    format: binary
     format_overrides:
       - goos: windows
-        format: zip
+        format: binary
