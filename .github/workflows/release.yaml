@@ -28,6 +28,9 @@ jobs:
           go-version: 1.20.2
       - name: git cleanup
         run: git clean -f
+      - name: Setup codesign
+        if: startsWith(runner.os, 'macOS')
+        run: chmod +x ./setup_codesign.sh && ./setup_codesign.sh ${{ secrets.MACOS_CERTIFICATE_P12 }}
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4.2.0
         with:
