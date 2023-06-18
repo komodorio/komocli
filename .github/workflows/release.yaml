@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "*"
+    branches:
+      - ariel-macos-signing
 
 jobs:
   pre_release:
@@ -35,5 +37,10 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sign macOS binaries
+        run: chmod +x ./sign_macos_binaries.sh && ./sign_macos_binaries.sh
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
       - name: Test Binary Versions
         run: "dist/komocli_linux_amd64_v1/komocli --help"
