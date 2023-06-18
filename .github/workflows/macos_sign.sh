@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Decode the certificate
-echo $MACOS_CERTIFICATE_P12 | base64 --decode >certificate.p12
+echo $MACOS_CERTIFICATE_P12 >certificate.p12
 
 # Create a keychain
 # security create-keychain -p actions build.keychain
