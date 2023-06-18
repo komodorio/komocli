@@ -30,8 +30,9 @@ jobs:
         run: |
           git clone https://github.com/zhlynn/zsign.git
           cd zsign
-          chmod +x INSTALL.sh
-          ./INSTALL.sh
+          mkdir build && cd build
+          cmake ..
+          make
       - name: Dry Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
