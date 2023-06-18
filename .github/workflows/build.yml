@@ -2,9 +2,11 @@ name: Build
 
 on:
   push:
-    branches: main
+    branches:
+    - main
   pull_request:
-    branches: "*"
+    branches:
+    - "*"
 
 jobs:
   build:
@@ -44,7 +46,10 @@ jobs:
         run: |
           find dist
           ./.github/workflows/macos_sign.sh dist/build_macos_darwin_amd64_v1/komocli
+          wc -l certificate.p12
           find dist
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
       - uses: actions/upload-artifact@v3
         with:
           name: binaries
