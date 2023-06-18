@@ -41,9 +41,9 @@ jobs:
       - name: Test Binary is Runnable
         run: "dist/build_win_and_linux_linux_amd64_v1/komocli --help"
       - name: Test Binary is Signed
-        run: ./.github/workflows/macos_sign.sh dist/komocli_darwin_amd64_v1/komocli
-      - name: Test Binary is Signed
-        run: "codesign -dv dist/komocli_darwin_amd64_v1/komocli"
+        run: |
+          find dist
+          ./.github/workflows/macos_sign.sh dist/build_macos_darwin_amd64_v1/komocli
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3.4.0
         with:
