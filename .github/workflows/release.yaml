@@ -31,6 +31,11 @@ jobs:
       - name: Setup codesign
         if: startsWith(runner.os, 'macOS')
         run: chmod +x ./setup_codesign.sh && ./setup_codesign.sh ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      - name: Merge GoReleaser configs
+        if: startsWith(runner.os, 'macOS')
+        run: |
+          echo "---" >> .goreleaser.yml
+          cat .goreleaser.sign.yml >> .goreleaser.yml
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4.2.0
         with:

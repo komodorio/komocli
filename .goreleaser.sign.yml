@@ -1,0 +1,16 @@
+signs:
+  - artifacts: all
+    cmd: codesign
+    args:
+      - "-s"
+      - "${CERTIFICATE_ID}"
+      - "--timestamp"
+      - "--force"
+      - "--options"
+      - runtime
+      - "${file}"
+    ids:
+      - komocli
+    env:
+      - CERTIFICATE_ID=${{ secrets.CERTIFICATE_ID }}
+      - MACOS_CERTIFICATE_P12=${{ secrets.MACOS_CERTIFICATE_P12 }}
