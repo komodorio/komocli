@@ -30,10 +30,7 @@ builds:
       - CGO_ENABLED=0
     hooks:
       post:
-        - ./github/workflows/macos_sign.sh "{{ .Path }}"
+        - ./.github/workflows/macos_sign.sh "{{ .Path }}"
 archives:
   - id: komocli
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
+    format: binary
