@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - "*"
-    branches:
-      - ariel-macos-signing
 
 jobs:
   pre_release:

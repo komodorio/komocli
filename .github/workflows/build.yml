@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: ariel-macos-signing
+    branches: main
   pull_request:
     branches: "*"
 
