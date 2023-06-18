@@ -33,6 +33,8 @@ jobs:
           args: release --snapshot --clean
       - name: Test Binary is Runnable
         run: "dist/komocli_linux_amd64_v1/komocli --help"
+      - name: Test Binary is Signed
+        run: "codesign -dv dist/komocli_darwin_amd64_v1/komocli"
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3.4.0
         with:
