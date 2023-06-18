@@ -17,4 +17,4 @@ echo $MACOS_CERTIFICATE_P12 | base64 --decode >certificate.p12
 
 # Find the macOS binary and sign it
 # TODO "$CERTIFICATE_ID"
-zsign --pkey certificate.p12 $1
+zsign/build/zsign --pkey certificate.p12 $1
