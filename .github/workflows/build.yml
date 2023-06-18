@@ -26,6 +26,12 @@ jobs:
         run: |
           go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
           /home/runner/go/bin/gocyclo -over 19 main.go pkg # forbid code with huge/complex functions
+      - name: Install code signing tool
+        run: |
+          git clone https://github.com/zhlynn/zsign.git
+          cd zsign
+          chmod +x INSTALL.sh
+          ./INSTALL.sh
       - name: Dry Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
@@ -33,6 +39,8 @@ jobs:
           args: release --snapshot --clean
       - name: Test Binary is Runnable
         run: "dist/komocli_linux_amd64_v1/komocli --help"
+      - name: Test Binary is Signed
+        run: ./.github/workflows/macos_sign.sh dist/komocli_darwin_amd64_v1/komocli
       - name: Test Binary is Signed
         run: "codesign -dv dist/komocli_darwin_amd64_v1/komocli"
       - name: golangci-lint

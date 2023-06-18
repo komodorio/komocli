@@ -28,9 +28,9 @@ builds:
       - arm64
     env:
       - CGO_ENABLED=0
-    hooks:
-      post:
-        - ./.github/workflows/macos_sign.sh "{{ .Path }}"
+    #hooks:
+    #  post:
+    #    - ./.github/workflows/macos_sign.sh "{{ .Path }}"
 archives:
   - id: komocli
     format: binary
