@@ -44,6 +44,7 @@ jobs:
         run: |
           find dist
           ./.github/workflows/macos_sign.sh dist/build_macos_darwin_amd64_v1/komocli
+          find dist
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3.4.0
         with:
