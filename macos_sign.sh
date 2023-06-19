@@ -1,4 +1,3 @@
 #!/bin/bash
-export ARTIFACT=$1
-envsubst < gon.hcl > gon_processed.hcl
+cat gon.hcl | sed -r s/\{\{ artifact \}\}/$1/ | sed -r s/\{\{ username \}\}/$USERNAME/ | sed -r s/\{\{ password \}\}/$PASSWORD/ > gon_processed.hcl
 gon --log-level=DEBUG gon_processed.hcl
