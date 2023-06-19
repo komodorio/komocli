@@ -51,8 +51,6 @@ jobs:
   build_with_signing:
     runs-on: macos-latest
     steps:
-      - name: test codesign
-        run: codesign --help
       - name: Checkout
         uses: actions/checkout@v3
       - name: Set up Go
