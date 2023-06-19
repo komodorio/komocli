@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -50,7 +51,7 @@ jobs:
           export USERNAME="${{ secrets.APPLE_ID_USERNAME }}"
           export PASSWORD="${{ secrets.APP_SPECIFIC_PASSWORD }}"
           envsubst < gon.hcl > gon_processed.hcl
-          gon gon_processed.hcl
+          gon --log-level=DEBUG gon_processed.hcl
       - name: Test Binary is Runnable
         run: "dist/komocli_linux_amd64_v1/komocli --help"
       - name: golangci-lint
