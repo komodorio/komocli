@@ -87,7 +87,7 @@ jobs:
           CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
       - name: Test Binary is Signed
         run: |
-          codesign --sign "${{ secrets.CERTIFICATE_ID }}" dist/build_macos_darwin_amd64_v1/komocli
+          codesign -vvvv --sign "${{ secrets.CERTIFICATE_ID }}" --keychain build.keychain dist/build_macos_darwin_amd64_v1/komocli
           codesign -dv dist/build_macos_darwin_amd64_v1/komocli
       - uses: actions/upload-artifact@v3
         with:
