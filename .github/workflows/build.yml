@@ -65,7 +65,7 @@ jobs:
           CERT_PASSWORD: ""
           MY_KEYCHAIN: build.keychain
           MY_KEYCHAIN_PASSWORD: ${{ secrets.CERTIFICATE_ID }}
-          IDENTITY_CERTIFICATE: ${{ secrets.CERTIFICATE_ID }}
+          IDENTITY_CERTIFICATE: "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
         run: |
           echo Decode the certificate
           echo ${{ secrets.CERTIFICATE_BASE64 }} | base64 --decode > $CERT
@@ -89,7 +89,7 @@ jobs:
           security import $CERT -k "$MY_KEYCHAIN" -P "$CERT_PASSWORD" -A -T "/usr/bin/codesign"
           
           # Enable codesigning from a non user interactive shell
-          security set-key-partition-list -S apple-tool:,apple:, -s -k $MY_KEYCHAIN_PASSWORD -D "${IDENTITY_CERTIFICATE}" -t private $MY_KEYCHAIN
+          security set-key-partition-list -S apple-tool:,apple:, -t private -s -k "$MY_KEYCHAIN_PASSWORD" -D "${IDENTITY_CERTIFICATE}" "$MY_KEYCHAIN"
       - name: Dry Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
