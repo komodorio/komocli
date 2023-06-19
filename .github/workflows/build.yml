@@ -51,7 +51,7 @@ jobs:
           # args: --timeout=15m
   build_with_signing:
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -64,6 +64,24 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.CERTIFICATE_BASE64 }}
           # p12-password: ${{ secrets.CERTIFICATES_P12_PASSWORD }}
+        run: |         
+            echo Decode the certificate
+            echo ${{ secrets.CERTIFICATE_BASE64 }} | base64 --decode >certificate.p12
+            
+            echo Create a keychain
+            security create-keychain -p actions build.keychain
+            
+            echo Import the certificate
+            security import certificate.p12 -k build.keychain -P "" -T /usr/bin/codesign
+            
+            echo Remember the keychain
+            security list-keychains -s build.keychain
+            
+            echo Unlock the keychain
+            security unlock-keychain -p actions build.keychain
+          
+            echo Defafult the keychain
+            security default-keychain -s build.keychain
       - name: Dry Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
@@ -73,7 +91,7 @@ jobs:
           CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
       - name: Test Binary is Signed
         run: |
-          codesign -vvv --sign "${{ secrets.CERTIFICATE_ID }}" dist/build_macos_darwin_amd64_v1/komocli
+          codesign --sign "${{ secrets.CERTIFICATE_ID }}" dist/build_macos_darwin_amd64_v1/komocli
           codesign -dv dist/build_macos_darwin_amd64_v1/komocli
       - uses: actions/upload-artifact@v3
         with:
