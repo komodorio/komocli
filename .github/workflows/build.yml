@@ -98,17 +98,11 @@ jobs:
           version: latest
           args: release --config .goreleaser-mac.yml --parallelism 1 --snapshot --clean
         env:
-          CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
-          MACOS_NOTARY_APPLE_ID: ${{ secrets.APPLE_ID_USERNAME }}
-          MACOS_NOTARY_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
-          MACOS_NOTARY_TEAM_ID: "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
-      - name: Test Binary is Signed
-        run: |
-          ./macos_sign.sh dist/build_macos_darwin_amd64_v1/komocli 
-          codesign -dv dist/build_macos_darwin_amd64_v1/komocli
-        env:
           USERNAME: ${{ secrets.APPLE_ID_USERNAME }}
           PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+      - name: Test Binary is Signed
+        run: |
+          codesign -dv dist/build_macos_darwin_amd64_v1/komocli
       - uses: actions/upload-artifact@v3
         with:
           name: binaries-mac
