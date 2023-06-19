@@ -25,7 +25,7 @@ jobs:
       - name: Cyclomatic complexity
         run: |
           go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-          /home/runner/go/bin/gocyclo -over 19 main.go pkg # forbid code with huge/complex functions
+          $(go env GOPATH)/bin/gocyclo -over 19 main.go pkg # forbid code with huge/complex functions
       - name: Install gon
         run: brew install mitchellh/gon/gon
       - name: Dry Run GoReleaser
