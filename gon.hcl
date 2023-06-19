@@ -1,9 +1,9 @@
-source    = ["{{ artifact }}"]
-bundle_id = "com.example.komocli"
+source    = ["=artifact="]
+bundle_id = "com.komodor.komocli"
 
 apple_id {
-  username = "{{ username }}"
-  password = "{{ password }}"
+  username = "=username="
+  password = "=password="
 }
 
 sign {
@@ -11,5 +11,5 @@ sign {
 }
 
 zip {
-  output_path = "{{ artifact }}.zip"
+  output_path = "=artifact=.zip"
 }
