@@ -33,7 +33,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           version: latest
-          args: release --snapshot --clean
+          args: release --parallelism 1 --snapshot --clean
       - name: Test Binary is Runnable
         run: "dist/build_win_and_linux_linux_amd64_v1/komocli --help"
       - uses: actions/upload-artifact@v3
@@ -79,7 +79,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v2
         with:
           version: latest
-          args: release --config .goreleaser-mac.yml --snapshot --clean
+          args: release --config .goreleaser-mac.yml --parallelism 1 --snapshot --clean
         env:
           CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
       - name: Test Binary is Signed
