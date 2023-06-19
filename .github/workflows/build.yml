@@ -3,10 +3,10 @@ name: Build
 on:
   push:
     branches:
-    - main
+      - main
   pull_request:
     branches:
-    - "*"
+      - "*"
 
 jobs:
   build:
@@ -28,13 +28,6 @@ jobs:
         run: |
           go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
           /home/runner/go/bin/gocyclo -over 19 main.go pkg # forbid code with huge/complex functions
-      - name: Install code signing tool
-        run: |
-          git clone https://github.com/zhlynn/zsign.git
-          cd zsign
-          mkdir build && cd build
-          cmake ..
-          make
       - name: Dry Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
@@ -42,14 +35,6 @@ jobs:
           args: release --snapshot --clean
       - name: Test Binary is Runnable
         run: "dist/build_win_and_linux_linux_amd64_v1/komocli --help"
-      - name: Test Binary is Signed
-        run: |
-          find dist
-          ./.github/workflows/macos_sign.sh dist/build_macos_darwin_amd64_v1/komocli
-          wc -l certificate.p12
-          find dist
-        env:
-          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
       - uses: actions/upload-artifact@v3
         with:
           name: binaries
@@ -63,3 +48,39 @@ jobs:
           skip-pkg-cache: true
           skip-build-cache: true
           # args: --timeout=15m
+  build_with_signing:
+    runs-on: macos-latest
+    steps:
+      - name: Prepare keys
+        run: |         
+            # Decode the certificate
+            echo $MACOS_CERTIFICATE_P12 | base64 --decode >certificate.p12
+            
+            # Create a keychain
+            security create-keychain -p actions build.keychain
+            
+            # Import the certificate
+            security import certificate.p12 -k build.keychain -P "" -T /usr/bin/codesign
+            
+            # Remember the keychain
+            security list-keychains -s build.keychain
+            
+            # Unlock the keychain
+            security unlock-keychain -p actions build.keychain
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      - name: Dry Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          version: latest
+          args: release --config .goreleaser-mac.yml --snapshot --clean
+        env:
+          CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
+      - name: Test Binary is Signed
+        run: |
+          codesign -dv dist/build_macos_darwin_amd64_v1/komocli
+      - uses: actions/upload-artifact@v3
+        with:
+          name: binaries-mac
+          path: dist/
+          retention-days: 1

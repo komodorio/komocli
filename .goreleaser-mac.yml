@@ -1,0 +1,33 @@
+# .goreleaser.yml
+# Build customization
+builds:
+  - id: build_macos
+    main: ./main.go
+    binary: komocli
+    ldflags: -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    #hooks:
+    #  post:
+    #    - ./.github/workflows/macos_sign.sh "{{ .Path }}"
+archives:
+  - id: komocli
+    format: binary
+signs:
+  - artifacts: all
+    cmd: codesign
+    args:
+      - "-s"
+      - "${CERTIFICATE_ID}"
+      - "--timestamp"
+      - "--force"
+      - "--options"
+      - runtime
+      - "${file}"
+    ids:
+      - komocli
