@@ -99,7 +99,7 @@ jobs:
           CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
           MACOS_NOTARY_APPLE_ID: ${{ secrets.APPLE_ID_USERNAME }}
           MACOS_NOTARY_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
-          MACOS_NOTARY_TEAM_ID: "Komodor Automation LTD (F584U99DLC)"
+          MACOS_NOTARY_TEAM_ID: "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
       - name: Test Binary is Signed
         run: |
           codesign -dv dist/build_macos_darwin_amd64_v1/komocli

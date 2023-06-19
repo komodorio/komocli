@@ -15,7 +15,7 @@ builds:
     hooks:
       post:
         - codesign --timestamp --keychain build.keychain --sign "{{ .Env.CERTIFICATE_ID }}" "{{ .Path }}"
-        - xcrun notarytool submit --wait "{{ .Path }}" --apple-id "$MACOS_NOTARY_APPLE_ID" --team-id "$MACOS_NOTARY_TEAM_ID" --password "$MACOS_NOTARY_PASSWORD"
+        - xcrun notarytool submit --wait "{{ .Path }}" --apple-id "{{ .Env.MACOS_NOTARY_APPLE_ID }}" --team-id "{{ .Env.MACOS_NOTARY_TEAM_ID }}" --password "{{ .Env.MACOS_NOTARY_PASSWORD }}"
 archives:
   - id: komocli
     format: binary
