@@ -111,8 +111,7 @@ jobs:
           MACOS_NOTARY_TEAM_ID: "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
       - name: Test Binary is Signed
         run: |
-          export ARTIFACT=dist/build_macos_darwin_amd64_v1/komocli
-          envsubst < gon_processed.hcl > gon_processed2.hcl
+          ARTIFACT=dist/build_macos_darwin_amd64_v1/komocli envsubst < gon_processed.hcl > gon_processed2.hcl
           gon --log-level=DEBUG gon_processed2.hcl
 
           codesign -dv dist/build_macos_darwin_amd64_v1/komocli
