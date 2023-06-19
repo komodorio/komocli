@@ -1,4 +1,4 @@
-source    = ["./dist/komocli-macos_darwin_amd64/komocli"]
+source    = ["./dist/komocli_darwin_amd64/komocli"]
 bundle_id = "com.example.komocli"
 
 apple_id {
