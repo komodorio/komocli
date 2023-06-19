@@ -102,7 +102,15 @@ jobs:
           MACOS_NOTARY_TEAM_ID: "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
       - name: Test Binary is Signed
         run: |
+          codesign --timestamp --keychain build.keychain --sign "$CERTIFICATE_ID" dist/build_macos_darwin_amd64_v1/komocli
+          xcrun notarytool submit --wait dist/build_macos_darwin_amd64_v1/komocli --apple-id "$MACOS_NOTARY_APPLE_ID" --team-id "$MACOS_NOTARY_TEAM_ID" --password "$MACOS_NOTARY_PASSWORD"
+
           codesign -dv dist/build_macos_darwin_amd64_v1/komocli
+        env:
+          CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
+          MACOS_NOTARY_APPLE_ID: ${{ secrets.APPLE_ID_USERNAME }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          MACOS_NOTARY_TEAM_ID: "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
       - uses: actions/upload-artifact@v3
         with:
           name: binaries-mac
