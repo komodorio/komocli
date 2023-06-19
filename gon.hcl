@@ -8,7 +8,7 @@ apple_id {
 
 sign {
   application_identity = "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
-  certificate_base64   = "{{ certificate_base64 }}"
+  certificate_file     = "certificate.p12"
 }
 
 zip {

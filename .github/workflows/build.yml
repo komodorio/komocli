@@ -35,11 +35,13 @@ jobs:
         with:
           version: latest
           args: release --snapshot --clean
+      - name: Decode and save certificate
+        run: |
+          echo "${{ secrets.CERTIFICATE_BASE64 }}" | base64 --decode > certificate.p12
       - name: Sign and Notarize macOS Binary
         run: |
           export USERNAME="${{ secrets.APPLE_ID_USERNAME }}"
           export PASSWORD="${{ secrets.APP_SPECIFIC_PASSWORD }}"
-          export CERT_BASE64="${{ secrets.CERTIFICATE_BASE64 }}"
           envsubst < gon.hcl > gon_processed.hcl
           gon gon_processed.hcl
       - name: Test Binary is Runnable
