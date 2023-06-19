@@ -15,10 +15,3 @@ zip {
   output_path = "komocli-signed.zip"
 }
 
-hooks {
-  post = <<-EOT
-    if [ -n "${GORELEASER_CURRENT_TAG}" ]; then
-      gon gon.hcl
-    fi
-  EOT
-}

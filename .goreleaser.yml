@@ -23,7 +23,7 @@ builds:
       - darwin
     goarch:
       - amd64
-    hooks:
-      post: gon gon.hcl
+    # hooks: TODO - add this after testing gon works on build step
+    #   post: gon gon.hcl 
     env:
       - CGO_ENABLED=0

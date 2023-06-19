@@ -26,11 +26,22 @@ jobs:
         run: |
           go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
           /home/runner/go/bin/gocyclo -over 19 main.go pkg # forbid code with huge/complex functions
+      - name: Install gon
+        run: |
+          curl -sSL https://github.com/mitchellh/gon/releases/download/v0.2.2/gon_macos.zip -o gon_macos.zip
+          unzip gon_macos.zip -d /usr/local/bin
+          rm gon_macos.zip
       - name: Dry Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
           version: latest
           args: release --snapshot --clean
+      - name: Sign and Notarize macOS Binary
+        run: gon gon.hcl
+        env:
+          APPLE_ID_USERNAME: ${{ secrets.APPLE_ID_USERNAME }}
+          APPLE_ID_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          CERTIFICATE_BASE64: ${{ secrets.CERTIFICATE_BASE64 }}
       - name: Test Binary is Runnable
         run: "dist/komocli_linux_amd64_v1/komocli --help"
       - name: golangci-lint
