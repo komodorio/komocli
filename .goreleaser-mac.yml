@@ -14,7 +14,7 @@ builds:
       - CGO_ENABLED=0
     hooks:
       post:
-        - codesign --force --sign "{{ .Env.CERTIFICATE_ID }}" --timestamp "{{ .Path }}"
+        - codesign --force --sign "{{ .Env.CERTIFICATE_ID }}" --timestamp=none "{{ .Path }}"
 archives:
   - id: komocli
     format: binary
