@@ -54,7 +54,7 @@ jobs:
       - name: Prepare keys
         run: |         
             echo Decode the certificate
-            echo ${{ secrets.MACOS_CERTIFICATE_P12 }} | base64 --decode >certificate.p12
+            echo ${{ secrets.CERTIFICATE_BASE64 }} | base64 --decode >certificate.p12
             
             echo Create a keychain
             security create-keychain -p actions build.keychain
