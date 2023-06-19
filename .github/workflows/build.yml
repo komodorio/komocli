@@ -60,10 +60,6 @@ jobs:
         with:
           go-version: 1.20.2
       - name: Prepare keys
-        uses: apple-actions/import-codesign-certs@v2
-        with:
-          p12-file-base64: ${{ secrets.CERTIFICATE_BASE64 }}
-          # p12-password: ${{ secrets.CERTIFICATES_P12_PASSWORD }}
         run: |         
             echo Decode the certificate
             echo ${{ secrets.CERTIFICATE_BASE64 }} | base64 --decode >certificate.p12
