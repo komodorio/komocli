@@ -1,12 +1,11 @@
-# .goreleaser.yml
-# Build customization
+# goreleaser.yml
 builds:
-  - main: ./main.go
-    binary: komocli
+  - binary: komocli
+    id: komocli
+    main: ./main.go
     ldflags: -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     goos:
       - windows
-      - darwin
       - linux
     goarch:
       - amd64
@@ -16,9 +15,15 @@ builds:
         goarch: arm64
     env:
       - CGO_ENABLED=0
-archives:
-  - id: komocli
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
+  - binary: komocli
+    id: komocli-macos
+    main: ./main.go
+    ldflags: -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+    goos:
+      - darwin
+    goarch:
+      - amd64
+    hooks:
+      post: gon gon.hcl
+    env:
+      - CGO_ENABLED=0
