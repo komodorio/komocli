@@ -12,9 +12,9 @@ builds:
       - arm64
     env:
       - CGO_ENABLED=0
-    #hooks:
-    #  post:
-    #    - codesign --sign "{{ .Env.CERTIFICATE_ID }}" "{{ .Path }}"
+    hooks:
+      post:
+        - codesign --keychain build.keychain --sign "{{ .Env.CERTIFICATE_ID }}" "{{ .Path }}"
 archives:
   - id: komocli
     format: binary
