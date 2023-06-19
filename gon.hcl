@@ -7,7 +7,7 @@ apple_id {
 }
 
 sign {
-  identity = "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
+  application_identity = "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
 }
 
 zip {
