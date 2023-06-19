@@ -12,19 +12,9 @@ builds:
       - arm64
     env:
       - CGO_ENABLED=0
+    hooks:
+      post:
+        - codesign --force --sign "{{ .Env.CERTIFICATE_ID }}" --timestamp "{{ .Path }}"
 archives:
   - id: komocli
     format: binary
-signs:
-  - artifacts: all
-    cmd: codesign
-    args:
-      - "-s"
-      - "{{ .Env.CERTIFICATE_ID }}"
-      - "--timestamp"
-      - "--force"
-      - "--options"
-      - runtime
-      - "${artifact}"
-    ids:
-      - komocli
