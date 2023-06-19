@@ -1,16 +1,24 @@
-   source = ["./dist/komocli-macos_darwin_amd64/komocli"]
-   bundle_id = "com.example.komocli"
+source    = ["./dist/komocli-macos_darwin_amd64/komocli"]
+bundle_id = "com.example.komocli"
 
-   apple_id {
-     username = "{{ env "APPLE_ID_USERNAME" }}"
-     password = "{{ env "APP_SPECIFIC_PASSWORD" }}"
-   }
+apple_id {
+  username = "{{ env " APPLE_ID_USERNAME " }}"
+  password = "{{ env " APP_SPECIFIC_PASSWORD " }}"
+}
 
-   sign {
-     application_identity = "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
-     certificate_base64 = "{{ env "CERTIFICATE_BASE64" }}"
-   }
+sign {
+  application_identity = "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
+  certificate_base64   = "{{ env " CERTIFICATE_BASE64 " }}"
+}
 
-   zip {
-     output_path = "komocli-signed.zip"
-   }
+zip {
+  output_path = "komocli-signed.zip"
+}
+
+hooks {
+  post = <<-EOT
+    if [ -n "${GORELEASER_CURRENT_TAG}" ]; then
+      gon gon.hcl
+    fi
+  EOT
+}
