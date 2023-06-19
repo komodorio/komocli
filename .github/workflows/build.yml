@@ -35,9 +35,10 @@ jobs:
         with:
           version: latest
           args: release --snapshot --clean
-      - name: Decode and save certificate
+      - name: Import certificate into keychain
         run: |
           echo "${{ secrets.CERTIFICATE_BASE64 }}" | base64 --decode > certificate.p12
+          security import certificate.p12 -k ~/Library/Keychains/build.keychain -P "" -T /usr/bin/codesign
       - name: Sign and Notarize macOS Binary
         run: |
           export USERNAME="${{ secrets.APPLE_ID_USERNAME }}"
