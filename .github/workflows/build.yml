@@ -60,21 +60,10 @@ jobs:
         with:
           go-version: 1.20.2
       - name: Prepare keys
-        run: |         
-            echo Decode the certificate
-            echo ${{ secrets.CERTIFICATE_BASE64 }} | base64 --decode >certificate.p12
-            
-            echo Create a keychain
-            security create-keychain -p actions build.keychain
-            
-            echo Import the certificate
-            security import certificate.p12 -k build.keychain -P "" -T /usr/bin/codesign
-            
-            echo Remember the keychain
-            security list-keychains -s build.keychain
-            
-            echo Unlock the keychain
-            security unlock-keychain -p actions build.keychain
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.CERTIFICATE_BASE64 }}
+          # p12-password: ${{ secrets.CERTIFICATES_P12_PASSWORD }}
       - name: Dry Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
@@ -84,7 +73,7 @@ jobs:
           CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
       - name: Test Binary is Signed
         run: |
-          codesign --sign "${{ secrets.CERTIFICATE_ID }}" dist/build_macos_darwin_amd64_v1/komocli
+          codesign -vvv --sign "${{ secrets.CERTIFICATE_ID }}" dist/build_macos_darwin_amd64_v1/komocli
           codesign -dv dist/build_macos_darwin_amd64_v1/komocli
       - uses: actions/upload-artifact@v3
         with:
