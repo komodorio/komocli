@@ -94,11 +94,6 @@ jobs:
           
           # Enable codesigning from a non user interactive shell
           security set-key-partition-list -S apple-tool:,apple:, -t private -s -k "$MY_KEYCHAIN_PASSWORD" -D "${IDENTITY_CERTIFICATE}" "$MY_KEYCHAIN"
-      - name: Sign and Notarize macOS Binary
-        run: |
-          export USERNAME="${{ secrets.APPLE_ID_USERNAME }}"
-          export PASSWORD="${{ secrets.APP_SPECIFIC_PASSWORD }}"
-          envsubst < gon.hcl > gon_processed.hcl
       - name: Dry Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
@@ -111,9 +106,7 @@ jobs:
           MACOS_NOTARY_TEAM_ID: "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
       - name: Test Binary is Signed
         run: |
-          ARTIFACT=dist/build_macos_darwin_amd64_v1/komocli envsubst < gon_processed.hcl > gon_processed2.hcl
-          gon --log-level=DEBUG gon_processed2.hcl
-
+          ./macos_sign.sh dist/build_macos_darwin_amd64_v1/komocli 
           codesign -dv dist/build_macos_darwin_amd64_v1/komocli
         env:
           CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
