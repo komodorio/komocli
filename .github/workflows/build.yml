@@ -35,6 +35,12 @@ jobs:
         with:
           version: latest
           args: release --snapshot --clean
+      - name: Create and set keychain
+        run: |
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-keychain-settings -lut 3600 build.keychain
       - name: Import certificate into keychain
         run: |
           echo "${{ secrets.CERTIFICATE_BASE64 }}" | base64 --decode > certificate.p12
