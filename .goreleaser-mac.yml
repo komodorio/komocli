@@ -1,5 +1,13 @@
 # .goreleaser.yml
 # Build customization
+universal_binaries:
+-
+  id: build_macos_universal
+  ids:
+  - build1
+  - build2
+  name_template: '{{.ProjectName}}_{{.Version}}'
+  replace: true
 builds:
   - id: build_macos
     main: ./main.go
