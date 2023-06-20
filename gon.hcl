@@ -10,6 +10,10 @@ sign {
   application_identity = "Developer ID Application: Komodor Automation LTD (F584U99DLC)"
 }
 
+staple {
+  enable = true
+}
+
 zip {
   output_path = "=artifact=.zip"
 }
