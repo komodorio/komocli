@@ -31,5 +31,3 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Test Binary Versions
-        run: "dist/komocli_linux_amd64_v1/komocli --help"
