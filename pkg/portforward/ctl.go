@@ -5,6 +5,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -60,7 +61,13 @@ func (c *Controller) testConnection(ctx context.Context, initMsg *SessionMessage
 	ws := NewWSConnectionWrapper(ctx, nil, c.RemoteSpec.AgentId, c.Token, true, *initMsg, c.timeout)
 	err := ws.Run()
 	if err != nil {
-		log.Warnf("Failed to test port-forward operability: %+v", err)
+		komodorRBACSignature := "you are missing permissions to perform the following action"
+		if strings.Contains(err.Error(), komodorRBACSignature) {
+			log.Warnf("You have no RBAC permissions in Komodor to do port forwarding on this resource")
+		} else {
+			log.Warnf("Failed to test port-forward operability: %+v", err)
+		}
+
 		return err
 	}
 

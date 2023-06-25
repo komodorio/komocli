@@ -1,21 +1,20 @@
 # .goreleaser.yml
 # Build customization
 builds:
-  - id: build_win_and_linux
+  - id: build_macos
     main: ./main.go
     binary: komocli
     ldflags: -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     goos:
-      - windows
-      - linux
+      - darwin
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: windows
-        goarch: arm64
     env:
       - CGO_ENABLED=0
+    hooks:
+      post:
+        - codesign --keychain build.keychain --sign "{{ .Env.CERTIFICATE_ID }}" "{{ .Path }}"
 archives:
   - id: komocli
     format: binary
