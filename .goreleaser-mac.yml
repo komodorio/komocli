@@ -14,7 +14,7 @@ builds:
       - CGO_ENABLED=0
     hooks:
       post:
-        - ./macos_sign.sh "{{ .Path }}"
+        - codesign --keychain build.keychain --sign "{{ .Env.CERTIFICATE_ID }}" "{{ .Path }}"
 archives:
   - id: komocli
     format: binary
