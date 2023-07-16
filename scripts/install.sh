@@ -9,8 +9,13 @@ get_os() {
   esac
 }
 get_arch() {
-  uname -m
+  arch1=$(uname -m)
+  if [[ "$arch1" == "x86_64" ]]; then
+    arch1="amd64"
+  fi
+  echo $arch1
 }
+
 get_download_url() {
   curl -s https://api.github.com/repos/komodorio/komocli/releases/latest \
   | jq --arg platform "${os}_${arch}" -r '.assets[] | select(.browser_download_url | contains($platform)) | .browser_download_url'
