@@ -34,20 +34,27 @@ function Get-DownloadURL {
     return $browserDownloadURL
 }
 
+function Get-Version {
+    $url = "https://api.github.com/repos/komodorio/komocli/releases/latest"
+    $response = Invoke-RestMethod -Uri $url
+    return $response.name
+}
+
 $os = Get-OS
 $arch = Get-Arch
 $downloadURL = Get-DownloadURL
+$version = Get-Version
 
 Write-Host $os
 Write-Host $arch
 Write-Host $downloadURL
 Write-Host "Downloading komocli package..."
-Invoke-WebRequest -Uri $downloadURL -OutFile "komocli_0.0.3_${os}_${arch}.tar.gz"
+Invoke-WebRequest -Uri $downloadURL -OutFile "komocli_${version}_${os}_${arch}.tar.gz"
 
 Write-Host "Extracting komocli package..."
-tar -xf komocli_0.0.3_${os}_${arch}.tar.gz
+tar -xf komocli_${version}_${os}_${arch}.tar.gz
 
 Write-Host "Installing komocli..."
 Move-Item -Path "komocli.exe" -Destination $env:APPDATA
-Remove-Item -Path "komocli_0.0.3_${os}_${arch}.tar.gz"
+Remove-Item -Path "komocli_${version}_${os}_${arch}.tar.gz"
 Write-Host "komocli installation completed!"

@@ -21,9 +21,14 @@ get_download_url() {
   | jq --arg platform "${os}_${arch}" -r '.assets[] | select(.browser_download_url | contains($platform)) | .browser_download_url'
 }
 
+get_version() {
+    curl -s https://api.github.com/repos/komodorio/komocli/releases/latest | jq -r '.name'
+}
+
 os=$(get_os)
 arch=$(get_arch)
 download_url=$(get_download_url)
+version=$(get_version)
 
 echo $os
 echo $arch
@@ -34,9 +39,9 @@ curl -LO "$download_url"
 
 
 echo "Extracting komocli package..."
-tar -xf "komocli_0.0.3_${os}_${arch}.tar.gz"
+tar -xf "komocli_${version}_${os}_${arch}.tar.gz"
 
 echo "Installing komocli..."
 sudo mv komocli /usr/local/bin/
-rm "komocli_0.0.3_${os}_${arch}.tar.gz"
+rm "komocli_${version}_${os}_${arch}.tar.gz"
 echo "komocli installation completed!"
