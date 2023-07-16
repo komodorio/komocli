@@ -22,7 +22,7 @@ get_download_url() {
 }
 
 get_version() {
-    curl -s https://api.github.com/repos/komodorio/komocli/releases/latest | jq '.name' | tr -d '"'
+    curl -s https://api.github.com/repos/komodorio/komocli/releases/latest | jq -r '.name'
 }
 
 os=$(get_os)
