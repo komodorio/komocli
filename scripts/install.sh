@@ -1,4 +1,4 @@
-#!/bin/bash
+``#!/bin/bash
 
 get_os() {
   case "$OSTYPE" in
@@ -9,12 +9,13 @@ get_os() {
   esac
 }
 get_arch() {
-  arch=$(uname -m)
-    if [[ "$arch" == "x86_64" ]]; then
-      arch="amd64"
-    fi
-    arch
+  arch1=$(uname -m)
+  if [[ "$arch1" == "x86_64" ]]; then
+    arch1="amd64"
+  fi
+  echo $arch1
 }
+echo $(get_arch)
 get_download_url() {
   curl -s https://api.github.com/repos/komodorio/komocli/releases/latest \
   | jq --arg platform "${os}_${arch}" -r '.assets[] | select(.browser_download_url | contains($platform)) | .browser_download_url'
@@ -39,3 +40,4 @@ echo "Installing komocli..."
 sudo mv komocli /usr/local/bin/
 rm "komocli_0.0.3_${os}_${arch}.tar.gz"
 echo "komocli installation completed!"
+``
