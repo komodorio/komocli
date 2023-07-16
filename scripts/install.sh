@@ -40,4 +40,3 @@ echo "Installing komocli..."
 sudo mv komocli /usr/local/bin/
 rm "komocli_0.0.3_${os}_${arch}.tar.gz"
 echo "komocli installation completed!"
-``
