@@ -35,6 +35,7 @@ function Get-DownloadURL {
 }
 
 function Get-Version {
+    $url = "https://api.github.com/repos/komodorio/komocli/releases/latest"
     $response = Invoke-RestMethod -Uri $url
     return $response.name
 }
