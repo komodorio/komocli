@@ -1,4 +1,4 @@
-``#!/bin/bash
+#!/bin/bash
 
 get_os() {
   case "$OSTYPE" in
