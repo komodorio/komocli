@@ -9,10 +9,11 @@ get_os() {
   esac
 }
 get_arch() {
-  arch = uname -m
+  arch=$(uname -m)
     if [[ "$arch" == "x86_64" ]]; then
       arch="amd64"
     fi
+    arch
 }
 get_download_url() {
   curl -s https://api.github.com/repos/komodorio/komocli/releases/latest \
