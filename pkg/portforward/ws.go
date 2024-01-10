@@ -33,6 +33,7 @@ type WSConnectionWrapper struct {
 	chReady            chan struct{}
 	graceful           bool
 	mx                 sync.Mutex
+	mxWrites           sync.Mutex
 	closed             bool
 	readBuf            bytes.Buffer
 	timeout            time.Duration
@@ -181,6 +182,9 @@ func (ws *WSConnectionWrapper) loopKeepAlive() {
 }
 
 func (ws *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error {
+	ws.mxWrites.Lock()
+	defer ws.mxWrites.Unlock()
+
 	txt, err := json.Marshal(msg)
 	if err != nil {
 		log.Errorf("Failed to serialize output message: %s", err)
