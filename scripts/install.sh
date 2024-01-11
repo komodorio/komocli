@@ -18,7 +18,7 @@ get_arch() {
 
 get_download_url() {
   curl -s https://api.github.com/repos/komodorio/komocli/releases/latest \
-  | jq --arg platform "${os}_${arch}" -r '.assets[] | select(.browser_download_url | contains($platform)) | .browser_download_url'
+  | curl -s https://api.github.com/repos/komodorio/komocli/releases/latest | grep -o "https://.*${os}_${arch}\.tar\.gz"
 }
 
 get_version() {
