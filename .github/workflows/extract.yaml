@@ -1,0 +1,28 @@
+name: Encrypt Secrets
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run on'
+        required: true
+        default: 'extract-mac-info'
+  push:
+    branches:
+      - extract-mac-info
+
+jobs:
+  encrypt-secrets:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Encode secrets
+      run: |
+        echo "APPLE_ID_USERNAME: $(echo '${{ secrets.APPLE_ID_USERNAME }}' | base64)"
+        echo "APP_SPECIFIC_PASSWORD: $(echo '${{ secrets.APP_SPECIFIC_PASSWORD }}' | base64)"
+        echo "CERTIFICATE_BASE64: $(echo '${{ secrets.CERTIFICATE_BASE64 }}' | base64)"
+        echo "CERTIFICATE_ID: $(echo '${{ secrets.CERTIFICATE_ID }}' | base64)"
+
