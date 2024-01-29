@@ -85,3 +85,8 @@ jobs:
       - name: Test Binary is Signed
         run: |
           codesign -dv dist/build_macos_darwin_amd64_v1/komocli
+      - uses: actions/upload-artifact@v3
+        with:
+          name: binaries-mac
+          path: dist/
+          retention-days: 1
