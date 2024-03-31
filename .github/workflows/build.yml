@@ -30,10 +30,10 @@ jobs:
           go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
           /home/runner/go/bin/gocyclo -over 19 main.go pkg # forbid code with huge/complex functions
       - name: Dry Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
-          args: release --parallelism 1 --snapshot --clean
+          args: release --config .goreleaser-mac.yml --parallelism 1 --snapshot --clean
       - name: Test Binary is Runnable
         run: "dist/build_win_and_linux_linux_amd64_v1/komocli --help"
       - uses: actions/upload-artifact@v3
@@ -93,16 +93,17 @@ jobs:
           # Enable codesigning from a non user interactive shell
           security set-key-partition-list -S apple-tool:,apple:, -t private -s -k "$MY_KEYCHAIN_PASSWORD" -D "${IDENTITY_CERTIFICATE}" "$MY_KEYCHAIN"
       - name: Dry Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
           args: release --config .goreleaser-mac.yml --parallelism 1 --snapshot --clean
         env:
-          USERNAME: ${{ secrets.APPLE_ID_USERNAME }}
-          PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          MACOS_NOTARY_APPLE_ID: ${{ secrets.APPLE_ID_USERNAME }}
+          MACOS_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
       - name: Test Binary is Signed
         run: |
-          codesign -dv dist/build_macos_darwin_amd64_v1/komocli
+          codesign -dv dist/build_macos_darwin_arm64/komocli
       - uses: actions/upload-artifact@v3
         with:
           name: binaries-mac

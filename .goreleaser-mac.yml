@@ -14,7 +14,7 @@ builds:
       - CGO_ENABLED=0
     hooks:
       post:
-        - ./macos_sign.sh "{{ .Path }}"
+        - chmod +x scripts/notarize-macos-app.sh && ./scripts/notarize-macos-app.sh {{ .Path }}.zip
 archives:
   - id: komocli
     format: binary
