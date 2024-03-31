@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	cmap "github.com/orcaman/concurrent-map/v2"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
@@ -33,10 +34,11 @@ type WSConnectionWrapper struct {
 	chReady            chan struct{}
 	graceful           bool
 	mx                 sync.Mutex
+	mxWrites           sync.Mutex
 	closed             bool
 	readBuf            bytes.Buffer
 	timeout            time.Duration
-	pendingAckMessages map[string]context.CancelFunc
+	pendingAckMessages cmap.ConcurrentMap[string, context.CancelFunc]
 	ackTimeoutErr      error
 }
 
@@ -181,6 +183,9 @@ func (ws *WSConnectionWrapper) loopKeepAlive() {
 }
 
 func (ws *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error {
+	ws.mxWrites.Lock()
+	defer ws.mxWrites.Unlock()
+
 	txt, err := json.Marshal(msg)
 	if err != nil {
 		log.Errorf("Failed to serialize output message: %s", err)
@@ -196,7 +201,7 @@ func (ws *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error 
 
 	if needsAck {
 		ctx, cancel := context.WithTimeout(ws.ctx, ws.timeout)
-		ws.pendingAckMessages[msg.MessageId] = cancel
+		ws.pendingAckMessages.Set(msg.MessageId, cancel)
 		go ws.expectAck(ctx, msg)
 	}
 
@@ -205,7 +210,7 @@ func (ws *WSConnectionWrapper) sendWS(msg *SessionMessage, needsAck bool) error 
 
 func (ws *WSConnectionWrapper) expectAck(ctx context.Context, msg *SessionMessage) {
 	<-ctx.Done() // wait for ctx to potentially expire
-	if cancel, found := ws.pendingAckMessages[msg.MessageId]; found {
+	if cancel, found := ws.pendingAckMessages.Get(msg.MessageId); found {
 		cancel()
 		if ctx.Err() != nil {
 			log.Warnf("Did not receive ack within timeout for message %s: %s", msg.MessageId, ctx.Err())
@@ -326,8 +331,8 @@ func (ws *WSConnectionWrapper) handleMsgAck(msg *SessionMessage) error {
 
 	acked := msg.Data.(*WSAckData).AckedMessageID
 
-	if _, ok := ws.pendingAckMessages[acked]; ok {
-		delete(ws.pendingAckMessages, acked)
+	if _, ok := ws.pendingAckMessages.Get(acked); ok {
+		ws.pendingAckMessages.Remove(acked)
 	} else {
 		log.Warnf("Received ack for unexpected message ID: %s", acked)
 	}
@@ -404,7 +409,7 @@ func NewWSConnectionWrapper(ctx context.Context, conn net.Conn, agentId string, 
 		chReady: make(chan struct{}),
 
 		timeout:            timeout,
-		pendingAckMessages: map[string]context.CancelFunc{},
+		pendingAckMessages: cmap.New[context.CancelFunc](),
 	}
 }
 
