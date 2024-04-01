@@ -33,7 +33,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
-          args: release --config .goreleaser-mac.yml --parallelism 1 --snapshot --clean
+          args: release --parallelism 1 --snapshot --clean
       - name: Test Binary is Runnable
         run: "dist/build_win_and_linux_linux_amd64_v1/komocli --help"
       - uses: actions/upload-artifact@v3
@@ -59,8 +59,6 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: 1.20.2
-      - name: Install gon
-        run: brew install mitchellh/gon/gon
       - name: Prepare keys
         env:
           CERT: certificate.p12
