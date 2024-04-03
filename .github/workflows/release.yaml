@@ -81,6 +81,7 @@ jobs:
           MACOS_NOTARY_APPLE_ID: ${{ secrets.APPLE_ID_USERNAME }}
           MACOS_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
           MACOS_NOTARY_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
       - name: Test Binary is Signed
         run: |
           codesign -dv dist/build_macos_darwin_amd64_v1/komocli
