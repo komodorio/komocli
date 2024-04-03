@@ -4,9 +4,6 @@ on:
   push:
     tags:
       - "*"
-  pull_request:
-    branches:
-      - "*"
 
 jobs:
   pre_release:
@@ -28,7 +25,7 @@ jobs:
       - name: git cleanup
         run: git clean -f
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v4.2.0
+        uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
           args: release --clean
@@ -85,8 +82,3 @@ jobs:
       - name: Test Binary is Signed
         run: |
           codesign -dv dist/build_macos_darwin_amd64_v1/komocli
-      - uses: actions/upload-artifact@v3
-        with:
-          name: binaries-mac
-          path: dist/
-          retention-days: 1
