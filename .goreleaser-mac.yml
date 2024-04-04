@@ -19,7 +19,7 @@ builds:
         # sign
         - scripts/codesign-macos-app.sh "{{ .Path }}"
         # notarize
-        - scripts/notarize-macos-app.sh {{ .Path }}.zip
+        - scripts/notarize-macos-app.sh "{{ .Path }}"
 archives:
   - id: komocli
     format: binary
