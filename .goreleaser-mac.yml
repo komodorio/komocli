@@ -1,5 +1,7 @@
 # .goreleaser.yml
 # Build customization
+checksum:
+  name_template: "{{ .ProjectName }}_checksums_mac.txt"
 builds:
   - id: build_macos
     main: ./main.go
