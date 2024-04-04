@@ -21,7 +21,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.2
+          go-version: 1.22.2
       - name: git cleanup
         run: git clean -f
       - name: Run GoReleaser
@@ -40,7 +40,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.20.2
+          go-version: 1.22.2
       - name: Prepare keys
         env:
           CERT: certificate.p12
@@ -76,7 +76,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
-          args: release --config .goreleaser-mac.yml --parallelism 1 --snapshot --clean
+          args: release --config .goreleaser-mac.yml --parallelism 1 --clean
         env:
           MACOS_NOTARY_APPLE_ID: ${{ secrets.APPLE_ID_USERNAME }}
           MACOS_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
