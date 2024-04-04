@@ -17,7 +17,7 @@ builds:
     hooks:
       post:
         # sign
-        - scripts/codesign-macos-app.sh "{{ .Path }}"
+        - codesign --options runtime --keychain build.keychain --sign "{{ .Env.CERTIFICATE_ID }}" "{{ .Path }}"
         # notarize
         - scripts/notarize-macos-app.sh "{{ .Path }}"
 archives:
