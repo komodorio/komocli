@@ -14,7 +14,10 @@ builds:
       - CGO_ENABLED=0
     hooks:
       post:
-        - codesign --keychain build.keychain --sign "{{ .Env.CERTIFICATE_ID }}" "{{ .Path }}"
+        # sign
+        - codesign --options runtime --keychain build.keychain --sign "{{ .Env.CERTIFICATE_ID }}" "{{ .Path }}"
+        # notarize
+        - chmod +x scripts/notarize-macos-app.sh && ./scripts/notarize-macos-app.sh {{ .Path }}.zip
 archives:
   - id: komocli
     format: binary
