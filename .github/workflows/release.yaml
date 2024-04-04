@@ -10,16 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
   release:
     needs: pre_release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: 1.22.2
       - name: git cleanup
@@ -36,9 +36,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: 1.22.2
       - name: Prepare keys
@@ -78,6 +78,7 @@ jobs:
           version: latest
           args: release --config .goreleaser-mac.yml --parallelism 1 --clean
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MACOS_NOTARY_APPLE_ID: ${{ secrets.APPLE_ID_USERNAME }}
           MACOS_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
           MACOS_NOTARY_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
