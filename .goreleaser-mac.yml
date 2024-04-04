@@ -19,7 +19,7 @@ builds:
         # sign
         - codesign --options runtime --keychain build.keychain --sign "{{ .Env.CERTIFICATE_ID }}" "{{ .Path }}"
         # notarize
-        - chmod +x scripts/notarize-macos-app.sh && ./scripts/notarize-macos-app.sh {{ .Path }}.zip
+        - scripts/notarize-macos-app.sh "{{ .Path }}"
 archives:
   - id: komocli
     format: binary

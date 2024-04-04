@@ -105,6 +105,10 @@ jobs:
           CERTIFICATE_ID: ${{ secrets.CERTIFICATE_ID }}
       - name: Test Binary is Signed
         run: |
+          cat codesign.log
+          echo ===============================
+          cat notarytool.log
+          echo ===============================
           codesign -dv dist/build_macos_darwin_arm64/komocli
       - uses: actions/upload-artifact@v4
         with:
