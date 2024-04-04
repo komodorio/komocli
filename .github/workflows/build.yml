@@ -93,7 +93,7 @@ jobs:
 
           # Enable codesigning from a non user interactive shell
           security set-key-partition-list -S apple-tool:,apple:, -t private -s -k "$MY_KEYCHAIN_PASSWORD" -D "${IDENTITY_CERTIFICATE}" "$MY_KEYCHAIN"
-      - name: Dry Run GoReleaser
+      - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
