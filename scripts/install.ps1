@@ -50,7 +50,6 @@ Write-Host $arch
 Write-Host $downloadURL
 Write-Host "Downloading komocli package..."
 Invoke-WebRequest -Uri $downloadURL -OutFile "komocli.exe"
-#Write-Host "Installing komocli..."
-#Move-Item -Path "komocli.exe" -Destination $env:APPDATA
-#Remove-Item -Path "komocli_${version}_${os}_${arch}.exe"
-#Write-Host "komocli installation completed!"
+Write-Host "Installing komocli..."
+Move-Item -Path "komocli.exe" -Destination $env:APPDATA
+Write-Host "komocli installation completed!"
