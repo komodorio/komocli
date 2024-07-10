@@ -56,4 +56,5 @@ mkdir $env:APPDATA\komodor
 $installation_path = $env:APPDATA\komodor
 Write-Host $installation_path
 Move-Item -Path "komocli.exe" -Destination $installation_path
+### set PATH=%PATH%;$installation_path
 Write-Host "komocli installation completed!"
