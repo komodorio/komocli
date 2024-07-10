@@ -67,7 +67,7 @@ Write-Host $downloadURL
 Write-Host "Downloading komocli package..."
 Invoke-WebRequest -Uri $downloadURL -OutFile "komocli.exe"
 Write-Host "Installing komocli..."
-if not exist $installation_path mkdir $installation_path
+[System.IO.Directory]::CreateDirectory($installation_path)
 Move-Item -Path "komocli.exe" -Destination $installation_path
 AddTo-Path($installation_path)
 Write-Host "komocli installation completed!"
