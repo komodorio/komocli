@@ -41,6 +41,20 @@ function Get-Version {
     return $response.name
 }
 
+function AddTo-Path{
+    param(
+        [string]$Dir
+    )
+    if (!(Test-Path $Dir) ){
+        Write-warning "Supplied directory was not found!"
+        return
+    }
+    $PATH = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+    if ($PATH -notlike "*"+$Dir+"*" ){
+        [Environment]::SetEnvironmentVariable("PATH", "$PATH;$Dir", "Machine")
+    }
+}
+
 $os = Get-OS
 $arch = Get-Arch
 $downloadURL = Get-DownloadURL
@@ -54,7 +68,6 @@ Invoke-WebRequest -Uri $downloadURL -OutFile "komocli.exe"
 Write-Host "Installing komocli..."
 mkdir $env:APPDATA\komodor
 $installation_path = "$env:APPDATA\komodor"
-Write-Host $installation_path
 Move-Item -Path "komocli.exe" -Destination $installation_path
-set PATH=%PATH%;$installation_path
+AddTo-Path($installation_path)
 Write-Host "komocli installation completed!"
