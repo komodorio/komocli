@@ -52,6 +52,7 @@ Write-Host $downloadURL
 Write-Host "Downloading komocli package..."
 Invoke-WebRequest -Uri $downloadURL -OutFile "komocli.exe"
 Write-Host "Installing komocli..."
-Move-Item -Path "komocli.exe" -Destination $env:APPDATA\komodor\
-set PATH=%PATH%;$env:APPDATA\komodor\
+mkdir $env:APPDATA\komodor
+Move-Item -Path "komocli.exe" -Destination $env:APPDATA\komodor
+set PATH=%PATH%;$env:APPDATA\komodor
 Write-Host "komocli installation completed!"
