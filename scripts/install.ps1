@@ -14,13 +14,14 @@ function Get-OS {
 }
 
 function Get-Arch {
-    if ((Get-WmiObject -Class Win32_ComputerSystem).SystemType -match '(x64)') {
+    $systemType = (Get-CimInstance -ClassName CIM_ComputerSystem).SystemType
+    if ($systemType -match 'x64') {
         "amd64"
     }
-    elseif ((Get-WmiObject -Class Win32_ComputerSystem).SystemType -match 'arm') {
+    elseif ($systemType -match 'ARM') {
         "arm64"
     }
-    elseif ((Get-WmiObject -Class Win32_ComputerSystem).SystemType -match '386') {
+    elseif ($systemType -match 'x86') {
         "386"
     }
 }
@@ -51,5 +52,6 @@ Write-Host $downloadURL
 Write-Host "Downloading komocli package..."
 Invoke-WebRequest -Uri $downloadURL -OutFile "komocli.exe"
 Write-Host "Installing komocli..."
-Move-Item -Path "komocli.exe" -Destination $env:APPDATA
+Move-Item -Path "komocli.exe" -Destination $env:APPDATA\komodor\
+set PATH=%PATH%;$env:APPDATA\komodor\
 Write-Host "komocli installation completed!"
