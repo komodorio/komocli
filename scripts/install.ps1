@@ -59,6 +59,7 @@ $os = Get-OS
 $arch = Get-Arch
 $downloadURL = Get-DownloadURL
 $version = Get-Version
+$installation_path = "$env:APPDATA\komodor"
 
 Write-Host $os
 Write-Host $arch
@@ -66,8 +67,7 @@ Write-Host $downloadURL
 Write-Host "Downloading komocli package..."
 Invoke-WebRequest -Uri $downloadURL -OutFile "komocli.exe"
 Write-Host "Installing komocli..."
-mkdir $env:APPDATA\komodor
-$installation_path = "$env:APPDATA\komodor"
+if not exist $installation_path mkdir $installation_path
 Move-Item -Path "komocli.exe" -Destination $installation_path
 AddTo-Path($installation_path)
 Write-Host "komocli installation completed!"
