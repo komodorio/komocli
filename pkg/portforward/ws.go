@@ -6,10 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
-	cmap "github.com/orcaman/concurrent-map/v2"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"net/http"
@@ -17,6 +13,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+	cmap "github.com/orcaman/concurrent-map/v2"
+	log "github.com/sirupsen/logrus"
 )
 
 const DefaultWSAddress = "wss://app.komodor.com"
@@ -58,10 +59,7 @@ func (ws *WSConnectionWrapper) Run() error {
 	hdr := http.Header{}
 	url := fmt.Sprintf("%s/ws/client/%s", base, ws.agentId)
 
-	if os.Getenv("KOMOCLI_DEV") == "" {
-		c := http.Cookie{Name: "JWT_TOKEN", Value: ws.jwt}
-		hdr.Set("Cookie", c.String())
-	} else {
+	if os.Getenv("KOMOCLI_DEV") != "" {
 		url += "?authorization=" + ws.jwt
 	}
 
@@ -111,6 +109,7 @@ func (ws *WSConnectionWrapper) init() error {
 	// write initial msg
 	ws.initMsg.MessageId = uuid.New().String()
 	ws.initMsg.Timestamp = time.Now()
+	ws.initMsg.JWT = ws.jwt
 
 	return ws.sendWS(ws.initMsg, true)
 }

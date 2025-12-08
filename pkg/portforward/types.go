@@ -29,6 +29,7 @@ type SessionMessage struct {
 	MessageType MessageType `json:"messageType"`
 	Data        interface{} `json:"data"`
 	Timestamp   time.Time   `json:"timestamp"`
+	JWT         string      `json:"jwt"`
 }
 
 func (m *SessionMessage) UnmarshalJSON(b []byte) error {
