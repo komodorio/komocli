@@ -21,6 +21,7 @@ const flagBrowser = "browser"
 const flagAddress = "address"
 const flagNamespace = "namespace"
 const flagCluster = "cluster"
+const flagRegion = "region"
 
 var (
 	portforwardLong = templates.LongDesc(`
@@ -31,14 +32,20 @@ var (
 		If there are multiple pods matching the criteria, a pod will be selected automatically.`)
 
 	portforwardExample = templates.Examples(`
-		# Listen on port 5000 locally, forwarding data to/from port 5000 in the pod
+		# Listen on port 5000 locally, forwarding data to/from port 5000 in the pod (US region - default)
 		komocli port-forward pod/mypod 5000 --namespace default --cluster my-cluster --token=...
+
+		# Use EU region
+		komocli port-forward pod/mypod 5000 --namespace default --cluster my-cluster --token=... --region eu
 
 		# Listen on port 5000 locally, forwarding data to/from port 5000 in a pod selected by the deployment
 		komocli port-forward deployment/mydeployment 5000 --namespace default --cluster my-cluster --token=...
 
 		# Listen on port 8888 locally, forwarding to 5000 in the pod
 		komocli port-forward pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=...
+
+		# Use custom WebSocket URL (advanced)
+		komocli port-forward pod/mypod 5000 --namespace default --cluster my-cluster --token=... --region wss://custom.komodor.com
 
 		# Listen on port 8888 on all addresses, forwarding to 5000 in the pod
 		komocli port-forward --address 0.0.0.0 pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=...
@@ -54,6 +61,7 @@ type CmdParams struct {
 	OpenBrowser  bool
 	Address      string
 	Cluster      string
+	Region       string
 	LocalPort    int
 	RemotePort   int
 	ResourceName string
@@ -106,6 +114,11 @@ func (p *CmdParams) AcceptArgs(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
+	p.Region, err = flags.GetString(flagRegion)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -117,7 +130,7 @@ func (p *CmdParams) Run(ctx context.Context) (err error) {
 		RemotePort: p.RemotePort,
 	}
 
-	ctl := NewController(rSpec, p.Address, p.LocalPort, p.Token, p.Timeout)
+	ctl := NewController(rSpec, p.Address, p.LocalPort, p.Token, p.Region, p.Timeout)
 
 	afterInit := func(addr string) {}
 	if p.OpenBrowser {
@@ -175,6 +188,7 @@ func setupFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool(flagBrowser, false, "Open forwarded address automatically in browser")
 	cmd.Flags().String(flagNamespace, "default", "Namespace for the resource")
 	cmd.Flags().String(flagCluster, "", "Komodor cluster name that contains resource")
+	cmd.Flags().String(flagRegion, "", "Komodor region or custom WebSocket URL (us, eu, or wss://custom.url)")
 }
 
 func validateFlags(cmd *cobra.Command) error {

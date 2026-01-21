@@ -1,18 +1,42 @@
 # komocli
 CLI to interact with Komodor platform
 
-## Port Forwarding 
+## Port Forwarding
 
-You need to know agent ID, provide valid JWT token and specify target names for objects
+### Basic Usage
 
-Example:
 ```shell
- komocli port-forward pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=...
+# Default (US region)
+komocli port-forward pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=...
+
+# EU region
+komocli port-forward pod/mypod 8888:5000 --namespace default --cluster my-cluster --token=... --region eu
+
+# Custom WebSocket URL (advanced)
+komocli port-forward pod/mypod 5000 --namespace default --cluster my-cluster --token=... --region wss://custom.komodor.com
 ```
 
-JWT token can be specified via env variable `KOMOCLI_JWT`
-`KOMOCLI_WS_URL` is the base URL for env, defaults to `wss://app.komodor.com`, `KOMOCLI_DEV` flag would make it use query string param for JWT instead of cookie.
-`--address` sets the bind address for forwarder
+### Authentication
+
+JWT token can be specified via:
+- Command line: `--token YOUR_TOKEN`
+- Environment variable: `KOMOCLI_JWT`
+
+### Region Configuration
+
+The `--region` flag supports:
+- **Predefined regions**: `us` (default), `eu`
+
+### Environment Variables
+
+- `KOMOCLI_JWT` - JWT authentication token (alternative to --token flag)
+- `DEBUG` - Enable verbose logging
+
+### Additional Options
+
+- `--address` - Sets the bind address for forwarder (default: localhost)
+- `--browser` - Automatically open forwarded address in browser
+- `--timeout` - Timeout for operations (default: 5s)
 
 # Roadmap, Ideas, TODOs
 
