@@ -436,20 +436,32 @@ func (ws *WSConnectionWrapper) newSessMessage(t MessageType, payload interface{}
 	}
 }
 
-func NewWSConnectionWrapper(ctx context.Context, conn net.Conn, agentId string, jwt string, region string, isConnTest bool, initMsg SessionMessage, timeout time.Duration) *WSConnectionWrapper {
-	return &WSConnectionWrapper{
-		ctx:        ctx,
-		tcpConn:    conn,
-		isConnTest: isConnTest,
-		initMsg:    &initMsg, // this is intentional to accept dereferenced value, to create a copy of it
+// WSConnectionConfig holds configuration for creating a new WSConnectionWrapper
+type WSConnectionConfig struct {
+	Ctx        context.Context
+	TcpConn    net.Conn
+	AgentId    string
+	JWT        string
+	Region     string
+	IsConnTest bool
+	InitMsg    SessionMessage
+	Timeout    time.Duration
+}
 
-		agentId: agentId,
-		jwt:     jwt,
-		region:  region,
+func NewWSConnectionWrapper(cfg WSConnectionConfig) *WSConnectionWrapper {
+	return &WSConnectionWrapper{
+		ctx:        cfg.Ctx,
+		tcpConn:    cfg.TcpConn,
+		isConnTest: cfg.IsConnTest,
+		initMsg:    &cfg.InitMsg, // this is intentional to accept dereferenced value, to create a copy of it
+
+		agentId: cfg.AgentId,
+		jwt:     cfg.JWT,
+		region:  cfg.Region,
 
 		chReady: make(chan struct{}),
 
-		timeout:            timeout,
+		timeout:            cfg.Timeout,
 		pendingAckMessages: cmap.New[context.CancelFunc](),
 	}
 }

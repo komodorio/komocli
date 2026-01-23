@@ -59,7 +59,16 @@ func (c *Controller) Run(ctx context.Context, afterInit func(addr string)) error
 
 func (c *Controller) testConnection(ctx context.Context, initMsg *SessionMessage) error {
 	// test connect to Komodor WS endpoint
-	ws := NewWSConnectionWrapper(ctx, nil, c.RemoteSpec.AgentId, c.Token, c.Region, true, *initMsg, c.timeout)
+	ws := NewWSConnectionWrapper(WSConnectionConfig{
+		Ctx:        ctx,
+		TcpConn:    nil,
+		AgentId:    c.RemoteSpec.AgentId,
+		JWT:        c.Token,
+		Region:     c.Region,
+		IsConnTest: true,
+		InitMsg:    *initMsg,
+		Timeout:    c.timeout,
+	})
 	err := ws.Run()
 	if err != nil {
 		komodorRBACSignature := "you are missing permissions to perform the following action"
@@ -93,7 +102,16 @@ func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listene
 		}
 
 		log.Infof("Accepted connection: %v", conn.LocalAddr())
-		ws := NewWSConnectionWrapper(ctx, conn, c.RemoteSpec.AgentId, c.Token, c.Region, false, *initMsg, c.timeout)
+		ws := NewWSConnectionWrapper(WSConnectionConfig{
+			Ctx:        ctx,
+			TcpConn:    conn,
+			AgentId:    c.RemoteSpec.AgentId,
+			JWT:        c.Token,
+			Region:     c.Region,
+			IsConnTest: false,
+			InitMsg:    *initMsg,
+			Timeout:    c.timeout,
+		})
 		conns = append(conns, ws)
 
 		wg.Add(1)
