@@ -47,7 +47,7 @@ func (c *Controller) Run(ctx context.Context, afterInit func(addr string)) error
 	go func() {
 		<-ctx.Done()
 		log.Debugf("Stopping to accept connections")
-		listen.Close()
+		_ =listen.Close()
 	}()
 
 	// setup connection handler

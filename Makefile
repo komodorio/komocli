@@ -13,6 +13,10 @@ test: ; $(info $(M) start unit testing...) @
 pull: ; $(info $(M) Pulling source...) @
 	@git pull
 
+.PHONY: lint
+lint: ; $(info $(M) Running golangci-lint...) @ ## Run golangci-lint
+	@golangci-lint run ./...
+
 .PHONY: build
 build: $(BIN) ; $(info $(M) Building executable...) @ ## Build program binary
 	go build \

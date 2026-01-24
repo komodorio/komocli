@@ -81,10 +81,12 @@ func TestResolveWebSocketURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set up environment
 			if tt.envURL != "" {
-				os.Setenv("KOMOCLI_WS_URL", tt.envURL)
-				defer os.Unsetenv("KOMOCLI_WS_URL")
+				_ = os.Setenv("KOMOCLI_WS_URL", tt.envURL)
+				defer func() {
+					_ = os.Unsetenv("KOMOCLI_WS_URL")
+				}()
 			} else {
-				os.Unsetenv("KOMOCLI_WS_URL")
+				_ = os.Unsetenv("KOMOCLI_WS_URL")
 			}
 
 			got, err := ResolveWebSocketURL(tt.input)

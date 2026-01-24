@@ -204,7 +204,8 @@ func (ws *WSConnectionWrapper) loopKeepAlive() {
 
 		select {
 		case <-ws.ctx.Done():
-			break
+			log.Debugf("KeepAlive loop done")
+			return
 		default:
 		}
 
