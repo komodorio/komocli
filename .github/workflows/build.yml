@@ -45,13 +45,10 @@ jobs:
           path: dist/
           retention-days: 1
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v9
         with:
-          # version: latest
-          # skip-go-installation: true
-          skip-pkg-cache: true
-          skip-build-cache: true
-          # args: --timeout=15m
+          version: v2.8.0
+          skip-cache: true
   mac_with_signing:
     runs-on: macos-latest
     timeout-minutes: 10
