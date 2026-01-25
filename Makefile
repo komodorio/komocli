@@ -4,7 +4,7 @@ VERSION ?= $(git describe --tags --always --dirty --match=v* 2> /dev/null || \
 
 .PHONY: test
 test: ; $(info $(M) start unit testing...) @
-	@go test $$(go list ./... | grep -v /mocks/) --race -v -short -coverpkg=./... -coverprofile=profile.cov
+	@go test $$(go list ./... | grep -v /mocks/ | grep -v '^github.com/komodorio/komocli$$') --race -v -short -coverprofile=profile.cov
 	@echo "\n*****************************"
 	@echo "**  TOTAL COVERAGE: $$(go tool cover -func profile.cov | grep total | grep -Eo '[0-9]+\.[0-9]+')%  **"
 	@echo "*****************************\n"
@@ -12,6 +12,10 @@ test: ; $(info $(M) start unit testing...) @
 .PHONY: pull
 pull: ; $(info $(M) Pulling source...) @
 	@git pull
+
+.PHONY: lint
+lint: ; $(info $(M) Running golangci-lint...) @ ## Run golangci-lint
+	@golangci-lint run ./...
 
 .PHONY: build
 build: $(BIN) ; $(info $(M) Building executable...) @ ## Build program binary

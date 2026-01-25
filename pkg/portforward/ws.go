@@ -19,7 +19,47 @@ import (
 	"time"
 )
 
-const DefaultWSAddress = "wss://app.komodor.com"
+const DefaultRegion = "us"
+
+// RegionURLs maps region identifiers to WebSocket URLs
+var RegionURLs = map[string]string{
+	"us": "wss://app.komodor.com",
+	"eu": "wss://app.eu.komodor.com",
+}
+
+// ResolveWebSocketURL determines the WebSocket URL based on priority:
+// 1. KOMOCLI_WS_URL environment variable (backward compatibility)
+// 2. Custom URL if provided (starts with ws:// or wss://)
+// 3. Region alias (us, eu)
+// 4. Default to US region
+func ResolveWebSocketURL(regionOrURL string) (string, error) {
+	// Priority 1: Environment variable override
+	if envURL := os.Getenv("KOMOCLI_WS_URL"); envURL != "" {
+		log.Debugf("Using WebSocket URL from KOMOCLI_WS_URL: %s", envURL)
+		return envURL, nil
+	}
+
+	// Priority 2: Empty region defaults to US
+	if regionOrURL == "" {
+		regionOrURL = DefaultRegion
+	}
+
+	// Priority 3: Check if it's a custom URL (starts with ws:// or wss://)
+	regionLower := strings.ToLower(regionOrURL)
+	if strings.HasPrefix(regionLower, "ws://") || strings.HasPrefix(regionLower, "wss://") {
+		log.Debugf("Using custom WebSocket URL: %s", regionOrURL)
+		return regionOrURL, nil
+	}
+
+	// Priority 4: Resolve region alias
+	if url, ok := RegionURLs[regionLower]; ok {
+		log.Debugf("Using WebSocket URL for region '%s': %s", regionLower, url)
+		return url, nil
+	}
+
+	// Unknown region
+	return "", fmt.Errorf("unknown region '%s'. Valid regions: us, eu. Or provide full WebSocket URL (wss://...)", regionOrURL)
+}
 
 type WSConnectionWrapper struct {
 	ctx        context.Context
@@ -27,6 +67,7 @@ type WSConnectionWrapper struct {
 	wsConn     *websocket.Conn
 	agentId    string
 	jwt        string
+	region     string
 	isConnTest bool
 	SessionId  string
 	initMsg    *SessionMessage
@@ -50,9 +91,9 @@ func (ws *WSConnectionWrapper) Run() error {
 		}
 	}()
 
-	base := os.Getenv("KOMOCLI_WS_URL")
-	if base == "" {
-		base = DefaultWSAddress
+	base, err := ResolveWebSocketURL(ws.region)
+	if err != nil {
+		return fmt.Errorf("failed to resolve WebSocket URL: %w", err)
 	}
 
 	hdr := http.Header{}
@@ -65,7 +106,6 @@ func (ws *WSConnectionWrapper) Run() error {
 		url += "?authorization=" + ws.jwt
 	}
 
-	var err error
 	ws.wsConn, err = ws.connectWS(url, hdr)
 	if err != nil {
 		log.Warnf("Failed to open WebSocket connection: %+v", err)
@@ -164,7 +204,8 @@ func (ws *WSConnectionWrapper) loopKeepAlive() {
 
 		select {
 		case <-ws.ctx.Done():
-			break
+			log.Debugf("KeepAlive loop done")
+			return
 		default:
 		}
 
@@ -396,19 +437,32 @@ func (ws *WSConnectionWrapper) newSessMessage(t MessageType, payload interface{}
 	}
 }
 
-func NewWSConnectionWrapper(ctx context.Context, conn net.Conn, agentId string, jwt string, isConnTest bool, initMsg SessionMessage, timeout time.Duration) *WSConnectionWrapper {
-	return &WSConnectionWrapper{
-		ctx:        ctx,
-		tcpConn:    conn,
-		isConnTest: isConnTest,
-		initMsg:    &initMsg, // this is intentional to accept dereferenced value, to create a copy of it
+// WSConnectionConfig holds configuration for creating a new WSConnectionWrapper
+type WSConnectionConfig struct {
+	Ctx        context.Context
+	TcpConn    net.Conn
+	AgentId    string
+	JWT        string
+	Region     string
+	IsConnTest bool
+	InitMsg    SessionMessage
+	Timeout    time.Duration
+}
 
-		agentId: agentId,
-		jwt:     jwt,
+func NewWSConnectionWrapper(cfg WSConnectionConfig) *WSConnectionWrapper {
+	return &WSConnectionWrapper{
+		ctx:        cfg.Ctx,
+		tcpConn:    cfg.TcpConn,
+		isConnTest: cfg.IsConnTest,
+		initMsg:    &cfg.InitMsg, // this is intentional to accept dereferenced value, to create a copy of it
+
+		agentId: cfg.AgentId,
+		jwt:     cfg.JWT,
+		region:  cfg.Region,
 
 		chReady: make(chan struct{}),
 
-		timeout:            timeout,
+		timeout:            cfg.Timeout,
 		pendingAckMessages: cmap.New[context.CancelFunc](),
 	}
 }

@@ -15,6 +15,7 @@ type Controller struct {
 	Address    string
 	LocalPort  int
 	Token      string
+	Region     string
 	timeout    time.Duration
 }
 
@@ -46,7 +47,7 @@ func (c *Controller) Run(ctx context.Context, afterInit func(addr string)) error
 	go func() {
 		<-ctx.Done()
 		log.Debugf("Stopping to accept connections")
-		listen.Close()
+		_ =listen.Close()
 	}()
 
 	// setup connection handler
@@ -58,7 +59,16 @@ func (c *Controller) Run(ctx context.Context, afterInit func(addr string)) error
 
 func (c *Controller) testConnection(ctx context.Context, initMsg *SessionMessage) error {
 	// test connect to Komodor WS endpoint
-	ws := NewWSConnectionWrapper(ctx, nil, c.RemoteSpec.AgentId, c.Token, true, *initMsg, c.timeout)
+	ws := NewWSConnectionWrapper(WSConnectionConfig{
+		Ctx:        ctx,
+		TcpConn:    nil,
+		AgentId:    c.RemoteSpec.AgentId,
+		JWT:        c.Token,
+		Region:     c.Region,
+		IsConnTest: true,
+		InitMsg:    *initMsg,
+		Timeout:    c.timeout,
+	})
 	err := ws.Run()
 	if err != nil {
 		komodorRBACSignature := "you are missing permissions to perform the following action"
@@ -92,7 +102,16 @@ func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listene
 		}
 
 		log.Infof("Accepted connection: %v", conn.LocalAddr())
-		ws := NewWSConnectionWrapper(ctx, conn, c.RemoteSpec.AgentId, c.Token, false, *initMsg, c.timeout)
+		ws := NewWSConnectionWrapper(WSConnectionConfig{
+			Ctx:        ctx,
+			TcpConn:    conn,
+			AgentId:    c.RemoteSpec.AgentId,
+			JWT:        c.Token,
+			Region:     c.Region,
+			IsConnTest: false,
+			InitMsg:    *initMsg,
+			Timeout:    c.timeout,
+		})
 		conns = append(conns, ws)
 
 		wg.Add(1)
@@ -121,12 +140,13 @@ func (c *Controller) acceptIncomingConns(ctx context.Context, listen net.Listene
 	wg.Wait()
 }
 
-func NewController(rSpec RemoteSpec, address string, lport int, jwt string, timeout time.Duration) *Controller {
+func NewController(rSpec RemoteSpec, address string, lport int, jwt string, region string, timeout time.Duration) *Controller {
 	return &Controller{
 		RemoteSpec: rSpec,
 		Address:    address,
 		LocalPort:  lport,
 		Token:      jwt,
+		Region:     region,
 		timeout:    timeout,
 	}
 }
