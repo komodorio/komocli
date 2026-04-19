@@ -6,10 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
-	cmap "github.com/orcaman/concurrent-map/v2"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"net/http"
@@ -17,6 +13,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+	cmap "github.com/orcaman/concurrent-map/v2"
+	log "github.com/sirupsen/logrus"
 )
 
 const DefaultRegion = "us"
@@ -163,7 +164,8 @@ func (ws *WSConnectionWrapper) writeLoop(readingDone chan struct{}) {
 	}
 
 	log.Debugf("Starting tcp->ws transfer")
-	n, err := io.Copy(ws, ws.tcpConn)
+	buf := make([]byte, 512*1024)
+	n, err := io.CopyBuffer(ws, ws.tcpConn, buf)
 	log.Infof("Done tcp->ws transfer: %d bytes", n)
 	if err != nil && !isConnClosedErr(err) {
 		log.Warnf("Problems transfering tcp->ws: %s", err)
@@ -285,7 +287,7 @@ func (ws *WSConnectionWrapper) Write(b []byte) (n int, err error) {
 		Input: base64.StdEncoding.EncodeToString(b),
 	})
 
-	err = ws.sendWS(msg, true)
+	err = ws.sendWS(msg, false)
 	if err != nil {
 		return 0, err
 	}
